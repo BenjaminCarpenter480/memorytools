@@ -1,31 +1,37 @@
 import os
-import subprocess
 import time
-from matplotlib.dates import date2num
 import numpy as np
 import pytest
+#Do Not Modify IMPORTS HERE #
 import requests
 from memorymonitor import MemorySnapper, MemoryMonitor
-PORT = 8129
+import subprocess
+#Do Not Modify IMPORTS HERE #
+
+
 
 @pytest.fixture(scope="module", name="server")
-def start_server(request):
+def start_server(request: type[pytest.FixtureRequest]): #Do not change api
     """Startup the test server
 
     Yields:
-        int: Server pid
+        (int, str): The pid and name of the server (pid, name)s
     """
+    
+    global PORT
+    PORT = 8129
+    
     #Spawn a test_server.py with Popen, yield and then kill it
     proc = subprocess.Popen(["python3", "test_server.py"])
     time.sleep(1) #TODO Lazy replace with a check for the server being up
     if(proc.poll() is not None):
         raise Exception("Server failed to start")
-    yield proc.pid #Proc name in second pos
+    yield proc.pid,None #Proc name in second pos
     requests.get(f"http://127.0.0.1:{PORT}/EXIT")
     time.sleep(2)
 
 @pytest.fixture(scope="function")
-def reset_server():
+def reset_server(): #Do not change api
     """Startup the test server
 
     Yields:
@@ -39,41 +45,55 @@ def reset_server():
     requests.get(f"http://127.0.0.1:{PORT}/clrmem")
     time.sleep(1)
 
-
 @pytest.fixture(scope="function", autouse=True)
 def delete_memory_pickle():
     os.remove("memory_data_tmp.dat") if os.path.exists("memory_data_tmp.dat") else None
     yield
     os.remove("memory_data_tmp.dat") if os.path.exists("memory_data_tmp.dat") else None
 
-def test_memory_snapper_simple_memory_leak(server: int):
+def send_memory_request(server): #Do not change api
+    response = requests.get(f"http://127.0.0.1:{PORT}/addmem")
+    assert response.status_code==200
+
+def send_memory_clear_request(server): #Do not change api
+    response = requests.get(f"http://127.0.0.1:{PORT}/clrmem")
+    assert response.status_code==200
+
+########## SHOULD BE SAME BELOW LINE ##########
+
+def simulate_simple_memory_leak(server):
+    for _ in range(1000):
+        time.sleep(np.random.randint(0,500))
+        send_memory_request(server)
+
+def simulate_sawtooth_memory_leak(server):
+    for _ in range(50):
+        simulate_simple_memory_leak(server)
+        send_memory_clear_request(server)
+
+def test_memory_snapper_simple_memory_leak(server: (int, str)):
     # Create a memory monitor
     mem_mon = MemorySnapper()
 
     # Take a snapshot of the memory usage
     mem_mon.take_memory_snapshot()
-    for _ in range(0,50):
+    for _ in range(5):
         # Allocate some memory
-        send_memory_request()
-        time.sleep(0.5)
+        send_memory_request(server)
+        time.sleep(0.1)
 
         # Take another snapshot of the memory usage
         mem_mon.take_memory_snapshot()
 
     # assert test server is in mem_mon.processes
-    assert len(mem_mon[server].vmss) == 51
-    mem_mon.plot_data(server)
-    
-    assert mem_mon[server].vmss[-1] > mem_mon[server].vmss[0]
-    m,c = np.polyfit(date2num(mem_mon[server].times), mem_mon[server].vmss, 1)
-    print(m)
-    print((mem_mon[server].vmss))
-    assert m>0.1 #We expect the memory to be dramatically increasing over time
+    assert len(mem_mon[server[0]].vmss) == 51
 
+    assert server[0] in mem_mon.detect_leaks()[1]
+    
     # Close the memory monitor
     mem_mon.close()
 
-def test_memory_snapper_simple_no_leak(server: int):
+def test_memory_snapper_simple_no_leak(server: (int, str)):
     # Create a memory monitor
     mem_mon = MemorySnapper()
 
@@ -83,21 +103,18 @@ def test_memory_snapper_simple_no_leak(server: int):
     #Data will now increase in usage but be cleared by the exit
     for _ in range(5):
         # Allocate some memory
-        send_memory_request()
+        send_memory_request(server)
         time.sleep(0.1)
-
-    send_memory_clear_request()
+    send_memory_clear_request(server)
     time.sleep(1)
     mem_mon.take_memory_snapshot()
-    assert len(mem_mon[server].vmss) == 2
+    assert len(mem_mon[server[0]].vmss) == 2
 
-    
-    # mem_mon.detect_abnormalites() #We expect this to not raise any issues
-
+    assert server[0] not in mem_mon.detect_leaks()[1]
     # Close the memory monitor
     mem_mon.close()
 
-def test_memory_snapper_save_and_load_leak(server: int):
+def test_memory_snapper_save_and_load_leak(server: (int,str)):
     assert not os.path.exists("memory_data_tmp.dat")
     # Create a memory monitor
     mem_mon = MemorySnapper()
@@ -105,13 +122,11 @@ def test_memory_snapper_save_and_load_leak(server: int):
     # Take a snapshot of the memory usage
     mem_mon.take_memory_snapshot()
 
-    for _ in range(0,50):
-        # Allocate some memory
-        send_memory_request()
-        time.sleep(1)
-        # Take another snapshot of the memory usage
-        mem_mon.take_memory_snapshot()
+    # Allocate some memory
+    send_memory_request(server)
 
+    # Take another snapshot of the memory usage
+    mem_mon.take_memory_snapshot()
 
     #Close the memory monitor and reopen it
     mem_mon.close()
@@ -122,18 +137,14 @@ def test_memory_snapper_save_and_load_leak(server: int):
     mem_mon.take_memory_snapshot()
 
     #Expect 3 snapshots
-    assert len(mem_mon[server].vmss) == 52
+    assert len(mem_mon[server[0]].vmss) == 3
 
-    mem_mon.plot_data(server)
-
-    m,c = np.polyfit(date2num(mem_mon[server].times), mem_mon[server].vmss, 1)
-    assert m>0.1 #We expect the memory to be dramatically increasing over time
-    print(m)
-    print((mem_mon[server].vmss))
+    print(mem_mon.detect_leaks())
+    assert server[0] in mem_mon.detect_leaks()[1]
     # Close the memory monitor
     mem_mon.close()
 
-def test_memory_snapper_save_and_load_no_leak(server: int):
+def test_memory_snapper_save_and_load_no_leak(server: (int, str)):
     assert not os.path.exists("memory_data_tmp.dat")
     # Create a memory monitor
     mem_mon = MemorySnapper()
@@ -146,20 +157,24 @@ def test_memory_snapper_save_and_load_no_leak(server: int):
     assert os.path.exists("memory_data_tmp.dat")
 
     # Allocate some memory
-    send_memory_request()
+    send_memory_request(server)
 
     # Allocate some more memory
-    send_memory_request()
+    send_memory_request(server)
+
     mem_mon = MemorySnapper()
 
-    send_memory_clear_request()
+    send_memory_clear_request(server)
 
     # Take another snapshot of the memory usage
     mem_mon.take_memory_snapshot()
 
     # Expect 2 snapshots
-    assert len(mem_mon[server].vmss) == 2
+    assert len(mem_mon[server[0]].vmss) == 2
 
+    # assert len(mem_mon.detect_leaks())==0
+
+    assert server[0] not in mem_mon.detect_leaks()[1]
     # Close the memory monitor
     mem_mon.close()
 
@@ -173,15 +188,5 @@ def test_memory_monitor(server):
 
     # Check that monitoring has stopped
     assert not mem_mon.is_monitoring()
-    assert len(mem_mon[server].times)>4 
-    assert mem_mon[server].vmss is not None
-
-
-def send_memory_request():
-    response = requests.get(f"http://127.0.0.1:{PORT}/addmem")
-    assert response.status_code==200
-
-
-def send_memory_clear_request():
-    response = requests.get(f"http://127.0.0.1:{PORT}/clrmem")
-    assert response.status_code==200
+    assert len(mem_mon[server[0]].times)>4 
+    assert mem_mon[server[0]].vmss is not None
