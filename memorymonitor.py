@@ -1,3 +1,4 @@
+import csv
 import logging
 import pickle
 import time
@@ -65,16 +66,18 @@ class MemorySnapper:
             self.__data_file = "memory_data_tmp.dat"
         else:
             self.__data_file = existing_data_file
-
+        ccs.logger.debug("MEMORY DATA FILE: " + self.__data_file)
         # Check if file exists, if it does load it as a pickle file into a dictionary
         # If it doesn't, create an empty dictionary
         try:
             with open(self.__data_file, "rb") as f:
                 loaded_data = pickle.load(f)
                 self.__dict__.update(loaded_data)
+                ccs.logger.debug("LOADING MEMORY DATA FROM FILE")
 
         except FileNotFoundError as err:
             self.__data = {}
+            ccs.logger.debug("NO MEMORY DATA FILE FOUND")
 
     def proc_by_name(self, name):
         """Return a Dict[datetime.datetime, int] of process data by the name of that process"""
@@ -218,18 +221,14 @@ class MemorySnapper:
                 i = i+1
             return anomalus_ts
 
-    def plot_data(self, proc_pid=None):
+    def _plot_data(self, proc_pid=None):
         """
-        Plot the memory usage of a process over time or all processes if proc_pid is None
+        Helper function to plot the memory usage of a process over time or all processes if proc_pid is None
         
         Args:
             proc_pid: Process id of process to plot default is None which plots all processes
         """
-        if proc_pid is None:
-            procs_to_plot = self.pids
-
-        else:
-            procs_to_plot = [proc_pid]
+        procs_to_plot = self.pids if proc_pid is None else [proc_pid]
 
         for proc in procs_to_plot:
             plt.scatter(self[proc].times, np.array(self[proc].vmss) / 1e6, label=(self.__data[proc].name,proc))
@@ -239,7 +238,53 @@ class MemorySnapper:
         plt.ylabel("Memory usage (MB)")
         plt.tight_layout()
         plt.xticks(rotation=45)
-        plt.show()
+
+    def plot_data_to_file(self, proc_pid=None, filename=None):
+        """
+        Plot the memory usage of a process over time or all processes if proc_pid is None and save to a file
+        
+        Args:
+            proc_pid: Process id of process to plot default is None which plots all processes
+            filename: If provided, the plot will be saved to this file
+        """
+        self._plot_data(proc_pid)
+        
+        if filename:
+            plt.savefig(filename)
+        plt.close()
+
+    def plot_data_to_screen(self, proc_pid=None, block=False):
+        """
+        Plot the memory usage of a process over time or all processes if proc_pid is None and show on screen
+        
+        Args:
+            proc_pid: Process id of process to plot default is None which plots all processes
+            block: If True, plt.show() will be blocking
+        """
+        self._plot_data(proc_pid)
+        
+        plt.show(block=block)
+
+    def export_to_csv(self, filename):
+        """
+        Export the memory usage data to a CSV file.
+
+        Args:
+            filename: The name of the file where the data will be saved
+        """
+        with open(filename, 'w', newline='') as csvfile:
+            fieldnames = ['Process ID', 'Process Name', 'Time', 'Memory Usage']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+            writer.writeheader()
+            for proc in self.pids:
+                for time, memory in zip(self[proc].times, self[proc].vmss):
+                    writer.writerow({
+                        'Process ID': proc, 
+                        'Process Name': self.__data[proc].name,
+                        'Time': time, 
+                        'Memory Usage': memory
+                    })
 
 class MemoryMonitor(MemorySnapper):
     """Class for continuous monitoring of processes memory usage """
