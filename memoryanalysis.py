@@ -6,9 +6,13 @@ import numpy as np
 import psutil as ps
 import scipy
 
-
+WINDOW_MIN = 4 # Add in some form of smoothing
+R_SQR_MIN = 0.8 #From paper
+CRITICAL_TIME_MAX = 60*60*1 # 1 hours
+CRITICAL_MEMORY_USAGE = ps.virtual_memory().total
+        
 class MemoryAnalysis():
-    """Class to analyse memory data"""
+    """Class to analyse memory data to be used in conjunction with MemorySnapper/MemoryMonitor"""
 
     def __init__(self, memory_data) -> None:
         self.__memory_data = memory_data
@@ -60,20 +64,12 @@ class MemoryAnalysis():
 
     def detect_leaks_linear_backward_regression(self)->Tuple[List[str],List[int]]:
         """Detect memory leaks using the linear backward regression algorithm
-        Not yet implemented sucessfully
         """
         anomalus_names = set()
         anomalus_pids = set()
-        WINDOW_MIN = 4 # Add in some form of smoothing
-        R_SQR_MIN = 0.8 #From paper
-        CRITICAL_TIME_MAX = 60*60*1 # 1 hours
-        CRITICAL_MEMORY_USAGE = ps.virtual_memory().total
         
         for pid in self.__memory_data.pids:
-            # if self[pid].name != "python3":
-            #     continue #TODO bcarpent Need to remove later
             input_data = self.__memory_data[pid]
-            anomalus_ts = set()#type :set(datetimes) #Anomalus data points
             
             i = WINDOW_MIN
             window_max= len(input_data.times)
@@ -81,7 +77,6 @@ class MemoryAnalysis():
             while(i<= n and i<=window_max):
                 ts = date2num(input_data.times[n-i:n])
                 ys = input_data.vmss[n-i:n]
-                # plt.scatter(ts,ys, label=i)
                 m,c,r_pcc,*_ =scipy.stats.linregress(ts,ys) #Gives us Pearson correlation coeff unlike np.polyfit
                 r2 = r_pcc**2 #Rsquare is the square of the pearson correlation coefficient
                 if m == 0:
@@ -90,19 +85,10 @@ class MemoryAnalysis():
                     t_crit = (CRITICAL_MEMORY_USAGE - c)/m
 
                 if (r2>=R_SQR_MIN):
-                    print("-------------------------------------------")
-                    # print(f"Data with good fit {self.__data[pid].name} pid {pid}")
-                    # print(f"m: {m}, c: {c}, r2: {r2}")
-                    # print(f"t_crit: {t_crit}")
-                    # print("-------------------------------------------")
                     if(t_crit > CRITICAL_TIME_MAX):
-                        #Add ts to the erronus stamps (unpack)
-                        # anomalus_ts = anomalus_ts | set(ts[n-i:i]) #Add new ts to set of anomalus ones
                         anomalus_names.add(self.__memory_data[pid].name)
                         anomalus_pids.add(pid)
                         
 
                 i = i+1
-        # plt.legend()
-        # plt.show()
         return (anomalus_names, anomalus_pids)
