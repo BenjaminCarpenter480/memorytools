@@ -1,10 +1,12 @@
 import os
+import sys
 import time
 import numpy as np
 import pytest
+sys.path.append("../..")
 #Do Not Modify IMPORTS HERE #
 import requests
-from memorymonitor import MemorySnapper, MemoryMonitor
+from memorytools.memorymonitor import MemorySnapper, MemoryMonitor
 import subprocess
 #Do Not Modify IMPORTS HERE #
 

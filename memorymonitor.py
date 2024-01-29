@@ -66,18 +66,18 @@ class MemorySnapper:
             self.__data_file = "memory_data_tmp.dat"
         else:
             self.__data_file = existing_data_file
-        ccs.logger.debug("MEMORY DATA FILE: " + self.__data_file)
+        logging.debug("MEMORY DATA FILE: " + self.__data_file)
         # Check if file exists, if it does load it as a pickle file into a dictionary
         # If it doesn't, create an empty dictionary
         try:
             with open(self.__data_file, "rb") as f:
                 loaded_data = pickle.load(f)
                 self.__dict__.update(loaded_data)
-                ccs.logger.debug("LOADING MEMORY DATA FROM FILE")
+                logging.debug("LOADING MEMORY DATA FROM FILE")
 
         except FileNotFoundError as err:
             self.__data = {}
-            ccs.logger.debug("NO MEMORY DATA FILE FOUND")
+            logging.debug("NO MEMORY DATA FILE FOUND")
 
     def proc_by_name(self, name):
         """Return a Dict[datetime.datetime, int] of process data by the name of that process"""
@@ -193,7 +193,6 @@ class MemorySnapper:
         """Detect memory leaks using the linear backward regression algorithm
         Not yet implemented sucessfully
         """
-        return NotImplementedError("This method is not implemented")
         for pid in self.pids:
             input_data = self[pid]
             anomalus_ts = set()#type :set(datetimes) #Anomalus data points
