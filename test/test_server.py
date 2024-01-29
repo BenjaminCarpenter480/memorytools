@@ -1,18 +1,19 @@
 import http.server
 import socketserver
 import sys
+import time
 import numpy as np
 
 import psutil
 
-PORT = 8129
+PORT = 8130
 
 
 class MyHandler(http.server.BaseHTTPRequestHandler):
     data_array = []
     
     def __init__(self, request, client_address, server) -> None:
-
+        socketserver.TCPServer.allow_reuse_address = True
         super().__init__(request, client_address, server)
         
         
@@ -50,10 +51,13 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-type", "text/plain") 
             self.end_headers()
             self.wfile.write(b"Command received")
-            self.close_connection()
             self.connection.close()
-            self.finish()
-            sys.exit(0)
+            time.sleep(1)
+            global exit_server
+            exit_server = True
+            # httpd.finish_request(self.request, self.client_address)
+            # self.finish()
+
         else:
             self.send_error(404)
 
@@ -61,5 +65,11 @@ if __name__ == "__main__":
     
     with socketserver.TCPServer(("", PORT), MyHandler) as httpd:
         print(f"Serving at port {PORT}")
-        httpd.serve_forever()
+        global exit_server
+        exit_server = False
+        while not exit_server:
+            httpd.handle_request()
+        httpd.socket.close()
         httpd.server_close()
+        print("SERVER CLOSED")
+        sys.exit(0)
