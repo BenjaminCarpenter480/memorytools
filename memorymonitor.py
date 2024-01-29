@@ -198,7 +198,7 @@ class MemorySnapper:
         anomalus_names = set()
         anomalus_pids = set()
         WINDOW_MIN = 4 # Add in some form of smoothing
-        R_sqr_min = 0.8 #From paper
+        R_SQR_MIN = 0.8 #From paper
         CRITICAL_TIME_MAX = 60*60*5 # One hour
         CRITICAL_MEMORY_USAGE = ps.virtual_memory().total
         
@@ -209,9 +209,9 @@ class MemorySnapper:
             anomalus_ts = set()#type :set(datetimes) #Anomalus data points
             
             i = WINDOW_MIN
-            WINDOW_MAX = len(input_data.times)
+            window_max= len(input_data.times)
             n = len(input_data.times)
-            while(i<= n and i<=WINDOW_MAX):
+            while(i<= n and i<=window_max):
                 ts = date2num(input_data.times[n-i:n])
                 ys = input_data.vmss[n-i:n]
                 # plt.scatter(ts,ys, label=i)
@@ -222,7 +222,7 @@ class MemorySnapper:
                 else:
                     t_crit = (CRITICAL_MEMORY_USAGE - c)/m
 
-                if (r2>=R_sqr_min):
+                if (r2>=R_SQR_MIN):
                     print("-------------------------------------------")
                     print(f"Data with good fit {self.__data[pid].name} pid {pid}")
                     print(f"m: {m}, c: {c}, r2: {r2}")
