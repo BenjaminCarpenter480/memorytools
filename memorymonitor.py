@@ -199,7 +199,7 @@ class MemorySnapper:
         anomalus_pids = set()
         WINDOW_MIN = 4 # Add in some form of smoothing
         R_SQR_MIN = 0.8 #From paper
-        CRITICAL_TIME_MAX = 60*60*5 # One hour
+        CRITICAL_TIME_MAX = 60*60*1 # 1 hours
         CRITICAL_MEMORY_USAGE = ps.virtual_memory().total
         
         for pid in self.pids:

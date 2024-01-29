@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+from matplotlib import pyplot as plt
 import numpy as np
 import pytest
 sys.path.append("../..")
@@ -79,7 +80,7 @@ def simulate_sawtooth_memory_leak(server):
         simulate_simple_memory_leak(server)
         send_memory_clear_request(server)
 
-# TESTING OF MEMORY SNAPPER LEAK DETECTION ALGORITHMS # 
+# TESTING OF MEMORY SNAPPER LEAK DETECTION ALGORITHMS FOR SIMPLE LEAK# 
 
 @pytest.mark.parametrize("leak_detection_algo", ["linefit", "LBR"])
 def test_memory_snapper_simple_memory_leak(server: (int, str), leak_detection_algo):
@@ -123,6 +124,38 @@ def test_memory_snapper_simple_no_leak(server: (int, str),  leak_detection_algo)
     assert len(mem_mon[server[0]].vmss) == 2
 
     assert server[0] not in mem_mon.detect_leaks(algo=leak_detection_algo)[1]
+    # Close the memory monitor
+    mem_mon.close()
+
+# TESTING OF MEMORY SNAPPER FOR SAWTOOTH LEAKS #
+    
+
+@pytest.mark.parametrize("leak_detection_algo", ["linefit", "LBR"])
+def test_memory_snapper_sawtooth_memory_leak(server: (int, str), leak_detection_algo):
+    # Create a memory monitor
+    mem_mon = MemorySnapper()
+
+    # Take a snapshot of the memory usage
+    mem_mon.take_memory_snapshot()
+    for _ in range(200):
+        # Allocate some memory
+        if (np.random.random())<0.95:
+            send_memory_request(server)
+        else:
+            send_memory_clear_request(server)
+        time.sleep(0.5)
+
+        # Take another snapshot of the memory usage
+        mem_mon.take_memory_snapshot()
+
+    # assert test server is in mem_mon.processes
+    assert server[0] in mem_mon.pids
+
+    # plt.scatter(mem_mon[server[0]].times, mem_mon[server[0]].vmss)
+    # plt.show()
+
+    assert server[0] in mem_mon.detect_leaks(algo=leak_detection_algo)[1]
+    
     # Close the memory monitor
     mem_mon.close()
 
