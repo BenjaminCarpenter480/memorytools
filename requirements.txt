@@ -1,3 +1,5 @@
+psutil
+requests
 numpy
 matplotlib
 pytest
