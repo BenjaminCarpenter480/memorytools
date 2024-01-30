@@ -60,7 +60,6 @@ class MemorySnapper:
         self._base_monitoring = base_monitoring
         self.__proc_names = set()
         self.totals = {}
-        self.analysis_module = MemoryAnalysis(self)
         if existing_data_file is None:
             self.__data_file = "memory_data_tmp.dat"
         else:
@@ -77,6 +76,8 @@ class MemorySnapper:
         except FileNotFoundError as err:
             self.__data = {}
             logging.debug("NO MEMORY DATA FILE FOUND")
+
+        self.analysis_module = MemoryAnalysis(self)
 
     def proc_by_name(self, name):
         """Return a Dict[datetime.datetime, int] of process data by the name of that process"""
