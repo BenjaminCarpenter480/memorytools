@@ -4,7 +4,7 @@ import time
 from matplotlib import pyplot as plt
 import numpy as np
 import pytest
-sys.path.append("../..")
+sys.path.append("..")
 #Do Not Modify IMPORTS HERE #
 import requests
 from memorytools.memorymonitor import MemorySnapper, MemoryMonitor
@@ -25,7 +25,7 @@ def start_server(request: type[pytest.FixtureRequest]): #Do not change api
     PORT = 8130
 
     #Spawn a test_server.py with Popen, yield and then kill it
-    proc = subprocess.Popen(["python3", "test_server.py"])
+    proc = subprocess.Popen(["python3", "test/test_server.py"])
     time.sleep(1) #TODO Lazy replace with a check for the server being up
     if(proc.poll() is not None):
         proc.kill()
