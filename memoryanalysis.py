@@ -33,6 +33,8 @@ class MemoryAnalysis():
             __algo = self.detect_leaks_line_fit
         elif algo=="LBR":
             __algo = self.detect_leaks_linear_backward_regression
+        elif algo=="LBRCPD":
+            __algo = self.linear_backward_regression_with_change_points    
         else:
             raise NotImplementedError()
 
@@ -90,10 +92,9 @@ class MemoryAnalysis():
                 else:
                     t_crit = (CRITICAL_MEMORY_USAGE - c)/m
 
-                if (r2>=R_SQR_MIN):
-                    if(t_crit > CRITICAL_TIME_MAX):
-                        anomalus_names.add(self.__memory_data[pid].name)
-                        anomalus_pids.add(pid)
+                if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
+                    anomalus_names.add(self.__memory_data[pid].name)
+                    anomalus_pids.add(pid)
                         
 
                 i = i+1
@@ -110,8 +111,34 @@ class MemoryAnalysis():
         return z_scores[z_scores>CPD_THRESHOLD]
 
 
-    # def linear_backward_regression_with_change_points(self) -> Tuple[List[str],List[int]]:
-    #     """ 
-    #     More efficient version of linear_backward_regression, which uses the change points to reduce
-    #     the number of iterations overwhich to do the linear regression.
-    #     """
+    def linear_backward_regression_with_change_points(self) -> Tuple[List[str],List[int]]:
+        """ 
+        More efficient version of linear_backward_regression, which uses the change points to reduce
+        the number of iterations overwhich to do the linear regression.
+        
+        """
+        anomalus_names = set()
+        anomalus_pids = set()
+        
+        for pid in self.__memory_data.pids:
+            input_data = self.__memory_data[pid]
+            
+            ts_f = date2num(input_data.times)
+            ys_f = input_data.vmss    
+            change_points = self.change_points_detection(ts_f,ys_f)
+            print(change_points)
+            num_change_points = len(change_points)
+            for i in range(num_change_points):
+                ts = ts_f[num_change_points-i:num_change_points]
+                ys = ys_f[num_change_points-i:num_change_points]
+                m,c,r_pcc,*_ =scipy.stats.linregress(ts,ys)
+                r2 = r_pcc**2 #Rsquare is the square of the pearson correlation coefficient
+                if m == 0:
+                    t_crit = np.Infinity # No memory leak, gradient flat
+                else:
+                    t_crit = (CRITICAL_MEMORY_USAGE - c)/m
+
+                if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
+                    anomalus_names.add(self.__memory_data[pid].name)
+                    anomalus_pids.add(pid)
+                        

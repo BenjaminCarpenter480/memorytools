@@ -11,6 +11,7 @@ from memorytools.memorymonitor import MemorySnapper, MemoryMonitor
 import subprocess
 #Do Not Modify IMPORTS HERE #
 
+ALGORITHMS = ["linefit", "LBR", "LBRCPD"]
 
 
 @pytest.fixture(scope="module", name="server")
@@ -82,7 +83,7 @@ def simulate_sawtooth_memory_leak(server):
 
 # TESTING OF MEMORY SNAPPER LEAK DETECTION ALGORITHMS FOR SIMPLE LEAK# 
 
-@pytest.mark.parametrize("leak_detection_algo", ["linefit", "LBR"])
+@pytest.mark.parametrize("leak_detection_algo", ALGORITHMS)
 def test_memory_snapper_simple_memory_leak(server: (int, str), leak_detection_algo):
     # Create a memory monitor
     mem_mon = MemorySnapper()
@@ -105,7 +106,7 @@ def test_memory_snapper_simple_memory_leak(server: (int, str), leak_detection_al
     # Close the memory monitor
     mem_mon.close()
 
-@pytest.mark.parametrize("leak_detection_algo", ["linefit", "LBR"])
+@pytest.mark.parametrize("leak_detection_algo", ALGORITHMS)
 def test_memory_snapper_simple_no_leak(server: (int, str),  leak_detection_algo):
     # Create a memory monitor
     mem_mon = MemorySnapper()
@@ -130,7 +131,7 @@ def test_memory_snapper_simple_no_leak(server: (int, str),  leak_detection_algo)
 # TESTING OF MEMORY SNAPPER FOR SAWTOOTH LEAKS #
     
 
-@pytest.mark.parametrize("leak_detection_algo", ["linefit", "LBR"])
+@pytest.mark.parametrize("leak_detection_algo", ALGORITHMS)
 def test_memory_snapper_sawtooth_memory_leak(server: (int, str), leak_detection_algo):
     # Create a memory monitor
     mem_mon = MemorySnapper()
@@ -224,6 +225,7 @@ def test_memory_snapper_save_and_load_no_leak(server: (int, str)):
     # Close the memory monitor
     mem_mon.close()
 
+# Very simple test of memory monitor
 def test_memory_monitor(server):
     # Create a memory monitor
     mem_mon = MemoryMonitor()
