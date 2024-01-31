@@ -5,6 +5,7 @@ from matplotlib.dates import date2num
 import numpy as np
 import psutil as ps
 import scipy
+import scipy.stats
 
 WINDOW_MIN = 4 # Add in some form of smoothing
 R_SQR_MIN = 0.8 #From paper
