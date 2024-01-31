@@ -29,11 +29,13 @@ class MemoryAnalysis():
             A set of names and pids of processes that are abnormally using memory
         """
         if algo=="linefit":
-            abnorm_names, abnorm_pids =  self.detect_leaks_line_fit()
+            __algo = self.detect_leaks_line_fit
         elif algo=="LBR":
-            abnorm_names, abnorm_pids =  self.detect_leaks_linear_backward_regression()
+            __algo = self.detect_leaks_linear_backward_regression
         else:
             raise NotImplementedError()
+
+        abnorm_names, abnorm_pids = __algo()
         abnorm_names = list(abnorm_names)
         abnorm_pids = list(abnorm_pids)
 
@@ -53,7 +55,6 @@ class MemoryAnalysis():
         Returns:
             A set of names and pids of processes that are abnormally using memory
         """
-        grads = []
         abnorm_names = set()
         abnorm_pids = set()
         for proc in self.__memory_data.pids:
@@ -63,7 +64,6 @@ class MemoryAnalysis():
             if m>0.1:
                 abnorm_names.add(self.__memory_data[proc].name)
                 abnorm_pids.add(proc)
-            grads.append(m) 
         return (abnorm_names, abnorm_pids)
 
     def detect_leaks_linear_backward_regression(self)->Tuple[List[str],List[int]]:
