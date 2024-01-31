@@ -10,6 +10,8 @@ WINDOW_MIN = 4 # Add in some form of smoothing
 R_SQR_MIN = 0.8 #From paper
 CRITICAL_TIME_MAX = 60*60*1 # 1 hours
 CRITICAL_MEMORY_USAGE = ps.virtual_memory().total
+
+CPD_THRESHOLD = 3 # 3 times the standard deviation, from paper
         
 class MemoryAnalysis():
     """Class to analyse memory data to be used in conjunction with MemorySnapper/MemoryMonitor"""
@@ -55,7 +57,9 @@ class MemoryAnalysis():
         abnorm_names = set()
         abnorm_pids = set()
         for proc in self.__memory_data.pids:
-            m,c  = np.polyfit(date2num(self.__memory_data[proc].times), self.__memory_data[proc].vmss, 1) #Fit a straight line to the data
+            m,c  = np.polyfit(date2num(self.__memory_data[proc].times),
+                                self.__memory_data[proc].vmss,
+                                1) #Fit a straight line to the data
             if m>0.1:
                 abnorm_names.add(self.__memory_data[proc].name)
                 abnorm_pids.add(proc)
@@ -78,6 +82,7 @@ class MemoryAnalysis():
                 ts = date2num(input_data.times[n-i:n])
                 ys = input_data.vmss[n-i:n]
                 m,c,r_pcc,*_ =scipy.stats.linregress(ts,ys) #Gives us Pearson correlation coeff unlike np.polyfit
+                #Now we do some more inteligent stuff compared to linefit
                 r2 = r_pcc**2 #Rsquare is the square of the pearson correlation coefficient
                 if m == 0:
                     t_crit = np.Infinity # No memory leak, gradient flat
@@ -92,3 +97,20 @@ class MemoryAnalysis():
 
                 i = i+1
         return (anomalus_names, anomalus_pids)
+
+
+    def change_points_detection(self, ts, ys)->List[int]:
+        """Calculate change points for the data set provided
+
+        Returns:
+            List[int]: Indexes of change point in the dataset
+        """
+        z_scores = scipy.stats.zscore(np.abs(np.diff(ys)/np.diff(ts)))
+        return z_scores[z_scores>CPD_THRESHOLD]
+
+
+    # def linear_backward_regression_with_change_points(self) -> Tuple[List[str],List[int]]:
+    #     """ 
+    #     More efficient version of linear_backward_regression, which uses the change points to reduce
+    #     the number of iterations overwhich to do the linear regression.
+    #     """
