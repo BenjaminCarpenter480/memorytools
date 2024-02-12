@@ -31,9 +31,6 @@ def start_server(request: type[pytest.FixtureRequest]): #Do not change api
     if(proc.poll() is not None):
         proc.kill()
         raise Exception("Server failed to start")
-    print("!!!!")
-    print(proc.pid)
-    print("!!!!")
     yield proc.pid,None #Proc name in second pos
     requests.get(f"http://127.0.0.1:{PORT}/exit")
     time.sleep(2)

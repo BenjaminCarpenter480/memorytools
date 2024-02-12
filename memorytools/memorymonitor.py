@@ -8,7 +8,7 @@ import numpy as np
 import psutil as ps
 import threading
 from typing import List, Tuple
-from . memoryanalysis import MemoryAnalysis
+from memorytools.memoryanalysis import MemoryAnalysis
 # from memorytools.memoryanalysis import MemoryAnalysis
 
 try:

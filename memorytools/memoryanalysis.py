@@ -17,7 +17,7 @@ CPD_THRESHOLD = 3 # 3 times the standard deviation, from paper
 class MemoryAnalysis():
     """Class to analyse memory data to be used in conjunction with MemorySnapper/MemoryMonitor"""
 
-    def __init__(self, memory_data) -> None:
+    def __init__(self, memory_data=None) -> None:
         self.__memory_data = memory_data
 
     def detect_leaks(self,algo="linefit")->Tuple[List[str],List[int]]:

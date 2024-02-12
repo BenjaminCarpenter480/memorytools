@@ -1,0 +1,9 @@
+Metadata-Version: 2.1
+Name: memorytools
+Version: 0.1.0
+Summary: Tool for detection of memory leaks on running processes
+Home-page: https://github.com/BenjaminCarpenter480/memorytools
+Author: Benjamin Carpenter
+Author-email: bcarpenter480@gmail.com
+
+Tool for detection of memory leaks on running processes
