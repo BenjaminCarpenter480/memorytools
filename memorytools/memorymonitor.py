@@ -1,3 +1,4 @@
+import argparse
 import csv
 import logging
 import pickle
@@ -8,13 +9,12 @@ import numpy as np
 import psutil as ps
 import threading
 from typing import List, Tuple
+from .memoryanalysis import MemoryAnalysis
 
 try:
     import ccs
     CCSENV=True
-    from vlttoo.memorytools.memorytools.memoryanalysis import MemoryAnalysis
 except ImportError:
-    from memorytools.memoryanalysis import MemoryAnalysis
     CCSENV=False
     
 
@@ -57,8 +57,7 @@ class MemorySnapper:
             """Returns a List[datetime.datetime] of times at which a memory snapshot was taken"""
             return list(self._vmss.keys())
 
-    def __init__(self, existing_data_file=None, base_monitoring=False):
-        self._base_monitoring = base_monitoring
+    def __init__(self, existing_data_file=None):
         self.__proc_names = set()
         self.totals = {}
         if existing_data_file is None:
@@ -225,8 +224,8 @@ class MemorySnapper:
 
 class MemoryMonitor(MemorySnapper):
     """Class for continuous monitoring of processes memory usage """
-    def __init__(self, time_interval=1, base_monitoring=True):
-        super().__init__(existing_data_file=None, base_monitoring=base_monitoring)
+    def __init__(self, time_interval=1):
+        super().__init__(existing_data_file=None)
 
         self.__time_interval = time_interval
         self.__monitoring=True
@@ -245,3 +244,43 @@ class MemoryMonitor(MemorySnapper):
 
     def is_monitoring(self):
         return self.__monitoring
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Memory Snapper Command Line Interface')
+    parser.add_argument('command', choices=['snapshot', 'export','monitor'], help="Command to execute\n"
+                                                                                        "snapshot: Take a memory snapshot\n"
+                                                                                        "export: Export memory data to a CSV file\n"
+                                                                                        "monitor: Start monitoring memory usage in the background")
+    parser.add_argument('--data-file', help='Path to the data file for persistence across instances')
+    parser.add_argument('--interval', type=int, help='Time interval for monitoring in seconds')
+    parser.add_argument('--output-file',required=False,default="memorymonitor_out.csv", help='Path to the output file for exporting data')
+
+    args = parser.parse_args()
+
+    if args.command == 'snapshot':
+        mem_snap = MemorySnapper(existing_data_file=args.data_file)
+        mem_snap.take_memory_snapshot()
+        mem_snap.close()
+        print('Memory snapshot taken successfully.')
+
+    elif args.command == 'export':
+        mem_snap = MemorySnapper(existing_data_file=args.data_file)
+        mem_snap.export_to_csv(args.output_file)
+        print(f'Data exported to {args.output_file} successfully.')
+
+    elif args.command == 'save':
+        mem_snap = MemorySnapper(existing_data_file=args.data_file)
+        mem_snap.close()
+        print(f'Data saved to {args.data_file} successfully.')
+
+    elif args.command == 'monitor':
+        mem_monitor = MemoryMonitor(time_interval=args.interval)
+        print('Memory monitoring started. Press Ctrl+C to stop.')
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            mem_monitor.stop_monitoring()
+            print('Memory monitoring stopped.')
