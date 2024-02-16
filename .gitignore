@@ -2,3 +2,6 @@ test/__pycache__/
 test/__pycache__/*
 /__pycache__/
 /__pycache__/*
+memorytools/__pycache__/__init__.cpython-39.pyc
+memorytools/__pycache__/memoryanalysis.cpython-39.pyc
+memorytools/__pycache__/memorymonitor.cpython-39.pyc

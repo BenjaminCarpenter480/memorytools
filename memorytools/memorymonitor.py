@@ -8,13 +8,13 @@ import numpy as np
 import psutil as ps
 import threading
 from typing import List, Tuple
-from memorytools.memoryanalysis import MemoryAnalysis
-# from memorytools.memoryanalysis import MemoryAnalysis
 
 try:
     import ccs
     CCSENV=True
+    from vlttoo.memorytools.memorytools.memoryanalysis import MemoryAnalysis
 except ImportError:
+    from memorytools.memoryanalysis import MemoryAnalysis
     CCSENV=False
     
 
