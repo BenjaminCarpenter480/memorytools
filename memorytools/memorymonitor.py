@@ -19,7 +19,7 @@ except ImportError:
     
 
 class MemorySnapper:
-    """Environment process memory information recorder
+    """Environment process memory store and recorder
     
     Example usage::
         >>> mem_snap = MemorySnapper() #Create a memory snapper object
@@ -64,7 +64,7 @@ class MemorySnapper:
             self.__data_file = "memory_data_tmp.dat"
         else:
             self.__data_file = existing_data_file
-        logging.debug("MEMORY DATA FILE: " + self.__data_file)
+        logging.debug("MEMORY DATA FILE: %s", self.__data_file)
         # Check if file exists, if it does load it as a pickle file into a dictionary
         # If it doesn't, create an empty dictionary
         try:
@@ -75,7 +75,7 @@ class MemorySnapper:
 
         except FileNotFoundError as err:
             self.__data = {}
-            logging.debug("NO MEMORY DATA FILE FOUND")
+            logging.debug("NO MEMORY DATA FILE FOUND: %s",err.strerror)
 
         self.analysis_module = MemoryAnalysis(self)
 
@@ -94,12 +94,12 @@ class MemorySnapper:
     @property
     def processes(self)->List[str]:
         """List of processes names for which memory data has been collected"""
-        return self.__proc_names
+        return list(self.__proc_names)
 
     @property
     def pids(self)->List[int]:
         """List of processes ids for which memory data has been collected"""
-        return self.__data.keys()
+        return list(self.__data.keys())
 
     def close(self):
         """Close the memory monitoring object, saving the collected data as a pickle"""
@@ -218,9 +218,27 @@ class MemorySnapper:
                     writer.writerow({
                         'Process ID': proc, 
                         'Process Name': self.__data[proc].name,
-                        'Time': time, 
+                        'Time':time,
                         'Memory Usage': memory
                     })
+
+    def import_from_csv(self, filename):
+        """
+        Import memory usage data from a CSV file.
+
+        Args:
+            filename: The name of the file to import data from
+        """
+        with open(filename, 'r', encoding="utf-8") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                proc_id = int(row['Process ID'])
+                proc_name = row['Process Name']
+                time = datetime.datetime.fromisoformat(row['Time'])
+                memory = float(row['Memory Usage'])
+                self[proc_id].name = proc_name
+                self[proc_id].times.append(time)
+                self[proc_id].vmss.append(memory)
 
 class MemoryMonitor(MemorySnapper):
     """Class for continuous monitoring of processes memory usage """

@@ -1,9 +1,12 @@
 import os
 import sys
 import time
+import tempfile
 from matplotlib import pyplot as plt
 import numpy as np
 import pytest
+import csv
+
 sys.path.append("..")
 #Do Not Modify IMPORTS HERE #
 import requests
@@ -126,7 +129,6 @@ def test_memory_snapper_simple_no_leak(server: (int, str),  leak_detection_algo)
     mem_mon.close()
 
 # TESTING OF MEMORY SNAPPER FOR SAWTOOTH LEAKS #
-    
 
 @pytest.mark.parametrize("leak_detection_algo", ALGORITHMS)
 def test_memory_snapper_sawtooth_memory_leak(server: (int, str), leak_detection_algo):
@@ -235,3 +237,57 @@ def test_memory_monitor(server):
     assert not mem_mon.is_monitoring()
     assert len(mem_mon[server[0]].times)>4 
     assert mem_mon[server[0]].vmss is not None
+
+def test_export_to_csv():
+    # Create a temporary file for the test
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+
+    # Initialize MemorySnapper and add some dummy data
+    memory_snapper = MemorySnapper()
+    memory_snapper.take_memory_snapshot()  # Assuming this method populates data
+
+    # Export data to csv
+    memory_snapper.export_to_csv(temp_file.name)
+
+    # Read the csv file and check if data is written correctly
+    with open(temp_file.name, 'r', encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        fieldnames = ['Process ID', 'Process Name', 'Time', 'Memory Usage']
+        assert reader.fieldnames == fieldnames
+
+        for row in reader:
+            assert 'Process ID' in row
+            assert 'Process Name' in row
+            assert 'Time' in row
+            assert 'Memory Usage' in row
+
+    # Delete the temporary file
+    os.unlink(temp_file.name)
+
+def test_import_from_csv():
+    # Create a temporary file for the test
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+
+    # Write some dummy data to the file
+    fieldnames = ['Process ID', 'Process Name', 'Time', 'Memory Usage']
+    data = [{'Process ID': '1234', 'Process Name': 'test', 'Time': '2022-01-01 00:00:00', 'Memory Usage': '100'}]
+
+    with open(temp_file.name, 'w', encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+
+    # Initialize MemorySnapper and import data from csv
+    memory_snapper = MemorySnapper()
+    memory_snapper.import_from_csv(temp_file.name)
+
+    # Check if data is imported correctly
+    imported_data = memory_snapper
+    assert len(imported_data.pids) == 1
+    assert imported_data[0]['Process ID'] == '1234'
+    assert imported_data[0]['Process Name'] == 'test'
+    assert imported_data[0]['Time'] == '2022-01-01 00:00:00'
+    assert imported_data[0]['Memory Usage'] == '100'
+
+    # Delete the temporary file
+    os.unlink(temp_file.name)
