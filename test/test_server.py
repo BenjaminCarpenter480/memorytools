@@ -13,8 +13,8 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
     data_array = []
     
     def __init__(self, request, client_address, server) -> None:
-        socketserver.TCPServer.allow_reuse_address = True
         super().__init__(request, client_address, server)
+        socketserver.TCPServer.allow_reuse_address = True
         
         
     def do_GET(self):
@@ -54,6 +54,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
             self.connection.close()
             time.sleep(1)
             global exit_server
+            httpd.server_close()  # Release the port in use
             exit_server = True
             # httpd.finish_request(self.request, self.client_address)
             # self.finish()
