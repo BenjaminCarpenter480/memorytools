@@ -5,6 +5,8 @@ from matplotlib.dates import date2num
 import numpy as np
 import psutil as ps
 import scipy
+import ruptures as rpt
+import ruptures.show
 import scipy.stats
 
 WINDOW_MIN = 4 # Add in some form of smoothing
@@ -101,14 +103,36 @@ class MemoryAnalysis():
         return (anomalus_names, anomalus_pids)
 
 
-    def change_points_detection(self, ts, ys)->List[int]:
-        """Calculate change points for the data set provided
+    def change_points_detection(self, times, values, model="l2")->List[int]:
+        """Calculate change points for the data set provided using the ruptures package
 
+        Parameters:
+            times (list): List of timestamps.
+            values (list): List of corresponding values.
+            model (str): Name of the model for detecting changes. Options are "l1", "l2", "rbf", "linear", "normal", "ar".
+
+        Uses Ruptures, cite Truong, L. Oudre, N. Vayatis. Selective review of offline change 
+        point detection methods. Signal Processing, 167:107299, 2020. [journal] [pdf]
+
+    
+        
         Returns:
-            List[int]: Indexes of change point in the dataset
-        """
-        z_scores = scipy.stats.zscore(np.abs(np.diff(ys)/np.diff(ts)))
-        return z_scores[z_scores>CPD_THRESHOLD]
+            list: List of timestamps at which a change is detected.
+    """
+        # Combine times and values into a 2D array
+        data = np.column_stack((times, values))
+        try:
+            # Fit the model with the data
+            algo = rpt.Pelt(model=model).fit(data)
+
+            # Retrieve the change points
+            change_points = algo.predict(pen=CPD_THRESHOLD)
+        except ruptures.exceptions.BadSegmentationParameters:
+            return []
+
+        return change_points[:-1] 
+
+        
 
 
     def linear_backward_regression_with_change_points(self) -> Tuple[List[str],List[int]]:
