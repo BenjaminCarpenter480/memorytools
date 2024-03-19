@@ -28,9 +28,9 @@ def start_server(request: type[pytest.FixtureRequest]): #Do not change api
     #Spawn a test_server.py with Popen, yield and then kill it
     proc = subprocess.Popen(["python3", "test/test_server.py"])
     time.sleep(1) #TODO Lazy replace with a check for the server being up
-    # if(proc.poll() is not None):
-        # proc.kill()
-        # raise Exception("Server failed to start")
+    if(proc.poll() is not None):
+        proc.kill()
+        raise Exception("Test server failed to start")
     yield proc.pid,None #Proc name in second pos
     requests.get(f"http://127.0.0.1:{PORT}/exit")
     time.sleep(2)
@@ -242,7 +242,7 @@ def test_memory_snapper_save_and_load_no_leak(server: (int, str)):
 def test_memory_monitor(server):
     # Create a memory monitor
     mem_mon = MemoryMonitor()
-    
+    mem_mon.start_monitoring()
     time.sleep(5)
     # Stop monitoring
     mem_mon.stop_monitoring()

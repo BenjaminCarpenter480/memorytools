@@ -253,7 +253,6 @@ class MemoryMonitor(MemorySnapper):
         if self.is_monitoring():
             self.stop_monitoring()
         super().close()
-        
 
 if __name__ == '__main__':
 
