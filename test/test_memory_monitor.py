@@ -1,5 +1,4 @@
 import os
-import pyexpat
 import sys
 import time
 from matplotlib import pyplot as plt

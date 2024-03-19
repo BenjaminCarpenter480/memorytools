@@ -224,12 +224,15 @@ class MemorySnapper:
 
 class MemoryMonitor(MemorySnapper):
     """Class for continuous monitoring of processes memory usage """
-    def __init__(self, time_interval=1):
-        super().__init__(existing_data_file=None)
+    def __init__(self, data_file=None, time_interval=1):
+        super().__init__(existing_data_file=data_file)
 
         self.__time_interval = time_interval
         self.__monitoring=True
         self.__monitor_thread = threading.Thread(target=self.__monitor_loop)
+        # self.__monitor_thread.start()
+    
+    def start_monitoring(self):
         self.__monitor_thread.start()
 
 
@@ -241,10 +244,16 @@ class MemoryMonitor(MemorySnapper):
     def stop_monitoring(self):
         self.__monitoring = False
         self.__monitor_thread.join()
+        del self.__monitor_thread
 
     def is_monitoring(self):
         return self.__monitoring
 
+    def close(self):
+        if self.is_monitoring():
+            self.stop_monitoring()
+        super().close()
+        
 
 if __name__ == '__main__':
 
