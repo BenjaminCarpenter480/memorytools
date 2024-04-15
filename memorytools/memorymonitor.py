@@ -101,11 +101,10 @@ class MemorySnapper:
         return self.__data.keys()
     
     def logger(self):
-        print(ccs.logger)
         if CCSENV:
             return ccs.logger
         else:
-            return logging.Logger
+            return logging.getLogger(__name__)
 
     def close(self):
         """Close the memory monitoring object, saving the collected data as a pickle"""

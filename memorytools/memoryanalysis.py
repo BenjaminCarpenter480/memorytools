@@ -62,11 +62,11 @@ class MemoryAnalysis():
         return (abnorm_names, abnorm_pids)
 
     def logger(self):
-        print(ccs.logger)
         if CCSENV:
             return ccs.logger
-        else:
-            return logging.Logger
+        else:            
+            return logging.getLogger(__name__)
+
 
     def detect_leaks_line_fit(self)->Tuple[List[str],List[int]]:
         """
