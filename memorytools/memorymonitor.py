@@ -16,7 +16,6 @@ try:
     CCSENV=True
 except ImportError:
     CCSENV=False
-    
 
 class MemorySnapper:
     """Environment process memory information recorder
@@ -64,18 +63,18 @@ class MemorySnapper:
             self.__data_file = "memory_data_tmp.dat"
         else:
             self.__data_file = existing_data_file
-        logging.debug("MEMORY DATA FILE: " + self.__data_file)
+        self.logger().debug("MEMORY DATA FILE: " + self.__data_file)
         # Check if file exists, if it does load it as a pickle file into a dictionary
         # If it doesn't, create an empty dictionary
         try:
             with open(self.__data_file, "rb") as f:
                 loaded_data = pickle.load(f)
                 self.__dict__.update(loaded_data)
-                logging.debug("LOADING MEMORY DATA FROM FILE")
+                self.logger().debug("LOADING MEMORY DATA FROM FILE")
 
         except FileNotFoundError as err:
             self.__data = {}
-            logging.debug("NO MEMORY DATA FILE FOUND")
+            self.logger().error("NO MEMORY DATA FILE FOUND")
 
         self.analysis_module = MemoryAnalysis(self)
 
@@ -100,6 +99,13 @@ class MemorySnapper:
     def pids(self)->List[int]:
         """List of processes ids for which memory data has been collected"""
         return self.__data.keys()
+    
+    def logger(self):
+        print(ccs.logger)
+        if CCSENV:
+            return ccs.logger
+        else:
+            return logging.Logger
 
     def close(self):
         """Close the memory monitoring object, saving the collected data as a pickle"""
@@ -117,7 +123,8 @@ class MemorySnapper:
             env_procs = ccs.GetEnvProcs(
                 full_report=True
             )  # Whilst process_iter might thread safe this ccs.GetEnvProcs is not
-            del env_procs[ccs.procName]
+            if ccs.procName in env_procs:
+                del env_procs[ccs.procName]
             env_pids = {v["pid"]: k for k, v in env_procs.items()}
 
         # MEASURE TIME
@@ -143,7 +150,7 @@ class MemorySnapper:
             # Update memory usage
                 self[p_pid][current_time] = p.memory_info()
             # total_mem = total_mem + self[p_pid][current_time]
-        logging.info(f"Total memory usage: {total_mem}")
+        self.logger().info(f"Total memory usage: {total_mem}")
         self.totals[current_time]=total_mem
 
     def detect_leaks(self,algo="linefit")->Tuple[List[str],List[int]]:
@@ -230,7 +237,6 @@ class MemoryMonitor(MemorySnapper):
         self.__time_interval = time_interval
         self.__monitoring=True
         self.__monitor_thread = threading.Thread(target=self.__monitor_loop)
-        # self.__monitor_thread.start()
     
     def start_monitoring(self):
         self.__monitor_thread.start()

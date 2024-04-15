@@ -9,6 +9,15 @@ import ruptures as rpt
 import ruptures.show
 import scipy.stats
 
+
+try:
+    import ccs
+    CCSENV=True
+except ImportError:
+    CCSENV=False
+
+
+
 WINDOW_MIN = 4 # Add in some form of smoothing
 R_SQR_MIN = 0.8 #From paper
 CRITICAL_TIME_MAX = 60*60*1 # 1 hours
@@ -45,12 +54,19 @@ class MemoryAnalysis():
         abnorm_pids = list(abnorm_pids)
 
         for proc_index in range(len(abnorm_names)):
-            logging.warning(f"Abnormal memory usage detected in process: {abnorm_names[proc_index]}"
+            self.logger().warning(f"Abnormal memory usage detected in process: {abnorm_names[proc_index]}"
                             f"with pid {abnorm_pids[proc_index]}")
             print(f"Abnormal memory usage detected in process: {abnorm_names[proc_index]} with pid "
                   f"{abnorm_pids[proc_index]}")
 
         return (abnorm_names, abnorm_pids)
+
+    def logger(self):
+        print(ccs.logger)
+        if CCSENV:
+            return ccs.logger
+        else:
+            return logging.Logger
 
     def detect_leaks_line_fit(self)->Tuple[List[str],List[int]]:
         """
@@ -132,9 +148,6 @@ class MemoryAnalysis():
 
         return change_points[:-1] 
 
-        
-
-
     def linear_backward_regression_with_change_points(self) -> Tuple[List[str],List[int]]:
         """ 
         More efficient version of linear_backward_regression, which uses the change points to reduce
@@ -165,4 +178,3 @@ class MemoryAnalysis():
                 if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
                     anomalus_names.add(self.__memory_data[pid].name)
                     anomalus_pids.add(pid)
-                        
