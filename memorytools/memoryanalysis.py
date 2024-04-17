@@ -53,11 +53,9 @@ class MemoryAnalysis():
         abnorm_names = list(abnorm_names)
         abnorm_pids = list(abnorm_pids)
 
-        for proc_index in range(len(abnorm_names)):
-            self.logger().warning(f"Abnormal memory usage detected in process: {abnorm_names[proc_index]}"
-                            f"with pid {abnorm_pids[proc_index]}")
-            print(f"Abnormal memory usage detected in process: {abnorm_names[proc_index]} with pid "
-                  f"{abnorm_pids[proc_index]}")
+        for pid in abnorm_pids:
+            self.logger().warning(f"Abnormal memory usage detected in process: {self.__memory_data[pid].name}"
+                            f"with pid {pid}")
 
         return (abnorm_names, abnorm_pids)
 
