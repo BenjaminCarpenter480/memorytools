@@ -5,3 +5,9 @@ test/__pycache__/*
 memorytools/__pycache__/__init__.cpython-39.pyc
 memorytools/__pycache__/memoryanalysis.cpython-39.pyc
 memorytools/__pycache__/memorymonitor.cpython-39.pyc
+build/lib/memorytools/__init__.py
+build/lib/memorytools/memoryanalysis.py
+build/lib/memorytools/memorymonitor.py
+build/lib/memorytools/runner.py
+build/scripts-3.11/runner.py
+build/scripts-3.11/__pycache__/runner.cpython-311.pyc
