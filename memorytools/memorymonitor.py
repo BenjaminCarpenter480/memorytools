@@ -1,4 +1,5 @@
 import argparse
+from concurrent.futures import thread
 import csv
 import logging
 import pickle
@@ -32,19 +33,25 @@ class MemorySnapper:
     class ProcMemData:
         """Class to store memory data for a single process"""
 
-        def __init__(self, pid):
+        def __init__(self, pid, name=None):
             """
             Base monitoring used to collect data that can be used to calculate the stdev of the memory usage for the entire environment
             """
             self.pid = pid
-            self.name = ps.Process(pid).name()
+            if name is None:
+                self.name = ps.Process(pid).name()
+            else:
+                self.name = name
             self._vmss = {}
 
         def __getitem__(self, time):
             return self._vmss[time]
 
         def __setitem__(self, time, full_memory):
-            self._vmss[time] = full_memory.vms
+            if(isinstance(full_memory,int)):
+                self._vmss[time] = full_memory
+            else:
+                self._vmss[time] = full_memory.vms
 
         @property
         def vmss(self) ->List[int]:
@@ -78,11 +85,15 @@ class MemorySnapper:
 
         self.analysis_module = MemoryAnalysis(self)
 
-    def proc_by_name(self, name):
-        """Return a Dict[datetime.datetime, int] of process data by the name of that process"""
+    def procs_by_name(self, name):
+        """
+        Return a list of Dict[datetime.datetime, int] of process data that match the passed name
+        """
+        procs=[]
         for pid in self.pids:
             if self.__data[pid].name == name:
-                return self.__data[pid]
+                procs.append(self.__data[pid])
+        return procs
 
     def __getitem__(self, pid):
         return self.__data[pid]
@@ -152,7 +163,7 @@ class MemorySnapper:
         self.logger().info(f"Total memory usage: {total_mem}")
         self.totals[current_time]=total_mem
 
-    def detect_leaks(self,algo="linefit")->Tuple[List[str],List[int]]:
+    def detect_leaks(self,algo="LBR")->Tuple[List[str],List[int]]:
         """ Detect memory leaks using a given algorithm
 
         Args:
@@ -163,15 +174,14 @@ class MemorySnapper:
         """
         return self.analysis_module.detect_leaks(algo)
 
-    def _plot_data(self, proc_pid=None):
+    def _plot_data(self, proc_pids:List[int]=None):
         """
         Helper function to plot the memory usage of a process over time or all processes if proc_pid is None
         
         Args:
             proc_pid: Process id of process to plot default is None which plots all processes
         """
-        procs_to_plot = self.pids if proc_pid is None else [proc_pid]
-
+        procs_to_plot = self.pids if proc_pids is [] else proc_pids
         for proc in procs_to_plot:
             plt.scatter(self[proc].times, np.array(self[proc].vmss) / 1e6, label=(self.__data[proc].name,proc))
 
@@ -181,7 +191,7 @@ class MemorySnapper:
         plt.tight_layout()
         plt.xticks(rotation=45)
 
-    def plot_data_to_file(self, proc_pid=None, filename=None):
+    def plot_data_to_file(self, proc_pads=None, names=None, filename=None):
         """
         Plot the memory usage of a process over time or all processes if proc_pid is None and save to a file
         
@@ -189,13 +199,18 @@ class MemorySnapper:
             proc_pid: Process id of process to plot default is None which plots all processes
             filename: If provided, the plot will be saved to this file
         """
-        self._plot_data(proc_pid)
+        if names:
+            proc_pads = []
+            for name in names:
+                for proc in self.procs_by_name(name):
+                    proc_pads.append(proc.pid)
+        self._plot_data(proc_pads)
         
         if filename:
             plt.savefig(filename)
         plt.close()
 
-    def plot_data_to_screen(self, proc_pid=None, block=False):
+    def plot_data_to_screen(self, proc_pids=None, block=False, names:List[str]=None):
         """
         Plot the memory usage of a process over time or all processes if proc_pid is None and show on screen
         
@@ -203,9 +218,15 @@ class MemorySnapper:
             proc_pid: Process id of process to plot default is None which plots all processes
             block: If True, plt.show() will be blocking
         """
-        self._plot_data(proc_pid)
+        if names:
+            proc_pids = []
+            for name in names:
+                for proc in self.procs_by_name(name):
+                    proc_pids.append(proc.pid)
+        self._plot_data(proc_pids)
         
         plt.show(block=block)
+        return plt
 
     def export_to_csv(self, filename):
         """
@@ -214,7 +235,7 @@ class MemorySnapper:
         Args:
             filename: The name of the file where the data will be saved
         """
-        with open(filename, 'w', newline='') as csvfile:
+        with open(filename, 'a', newline='') as csvfile:
             fieldnames = ['Process ID', 'Process Name', 'Time', 'Memory Usage']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
@@ -228,18 +249,63 @@ class MemorySnapper:
                         'Memory Usage': memory
                     })
 
+    def import_from_csv(self, filename):
+        """
+        Import memory usage data from a CSV file.
+
+        Args:
+            filename: The name of the file to import data from
+        """
+        with open(filename, 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                proc_id = int(row['Process ID'])
+                proc_name = row['Process Name']
+                time = datetime.datetime.fromisoformat(row['Time'])  
+                memory = int(row['Memory Usage'])
+                if proc_id not in self.__data.keys():
+                    self.__data[proc_id] = self.ProcMemData(proc_id, name=proc_name)
+                    self.__proc_names.add(proc_name)
+                self.__data[proc_id][time] = memory
+
 class MemoryMonitor(MemorySnapper):
-    """Class for continuous monitoring of processes memory usage """
-    def __init__(self, data_file=None, time_interval=1):
+    """
+        Class for continuous monitoring of processes memory usage
+        Args:
+            data_file: Path to the data file for persistence across instances
+            time_interval: Time interval between snapshots monitoring in seconds
+        
+
+        Example usage::
+            >>> mem_monitor = MemoryMonitor() #Create a memory monitor object
+            >>> mem_monitor.start_monitoring() #Start monitoring memory usage
+            >>> <Do some stuff while monitoring memory usage>
+            >>> mem_monitor.stop_monitoring() #Stop monitoring memory usage
+    """
+    def __init__(self, data_file=None, time_interval:float=1):
         super().__init__(existing_data_file=data_file)
 
         self.__time_interval = time_interval
-        self.__monitoring=True
+        #Setup but do not start monitoring thread
+        self.__monitoring=False
         self.__monitor_thread = threading.Thread(target=self.__monitor_loop)
     
     def start_monitoring(self):
-        self.__monitor_thread.start()
+            """
+            Starts the memory monitoring process.
 
+            This method creates a monitor thread if it has not been created already,
+            and starts the monitoring loop in a separate thread.
+
+            """
+            # If the monitor thread has not been created, create it
+            try:
+                self.__monitor_thread.name
+            except AttributeError:
+                self.__monitor_thread = threading.Thread(target=self.__monitor_loop)
+
+            self.__monitoring=True
+            self.__monitor_thread.start()
 
     def __monitor_loop(self):
         while self.__monitoring:
@@ -247,9 +313,20 @@ class MemoryMonitor(MemorySnapper):
             time.sleep(self.__time_interval)
 
     def stop_monitoring(self):
-        self.__monitoring = False
-        self.__monitor_thread.join()
-        del self.__monitor_thread
+            """
+            Stops the monitoring of memory usage.
+
+            This method sets the `__monitoring` flag to False, indicating that the monitoring should stop.
+            If the monitor thread is currently running, it is joined to the main thread to ensure proper termination.
+            If the monitor thread is not running, an error message is logged.
+
+            """
+            self.__monitoring = False
+            if self.__monitor_thread.is_alive():
+                self.__monitor_thread.join()
+            else: 
+                self.logger().error("Cannot stop thread as it is not running.")
+            del self.__monitor_thread
 
     def is_monitoring(self):
         return self.__monitoring
