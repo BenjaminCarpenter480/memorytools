@@ -246,6 +246,7 @@ class MemoryAnalysis():
 
 
         attempts_to_process = 0 
+        unable_to_process = 0
         for pid in self.__memory_data.pids:
 
             attempts_to_process = attempts_to_process + 1
