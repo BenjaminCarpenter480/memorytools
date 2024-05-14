@@ -16,5 +16,6 @@ setup(
     author_email='bcarpenter480@gmail.com',
     url='https://github.com/BenjaminCarpenter480/memorytools',
     # license=license,
-    packages=find_packages(exclude=('tests', 'docs'))
+    packages=find_packages(exclude=('tests', 'docs')),
+    scripts=['memorytools/runner.py']
 )
