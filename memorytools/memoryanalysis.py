@@ -22,14 +22,13 @@ except ImportError:
 
 
 DEBUG_PLOTTING = False
-WIN_MIN_NUM_POINTS_DETECT =  10000 # points = 5 seconds
+WIN_MIN_NUM_POINTS_DETECT =  int(200) # points = 1s
 WIN_MIN_NUM_POINTS_RESAMPLE = 10 #Number of points required to do a resample/any further analysis 
-RESAMPLE_MIN_WIN = timedelta(milliseconds=0.1).total_seconds() # 0.5ms
+RESAMPLE_MIN_WIN = timedelta(seconds=0.005).total_seconds() # 5ms
 R_SQR_MIN = 0.9 #From paper
 CRITICAL_TIME_MAX = 60*60*1 # 1 hours
 CRITICAL_MEMORY_USAGE = ps.virtual_memory().total
-MAX_TIME_DIFF = 0.01 # 10ms TIME BETWEEN POINTS TO BE CONSIDERED A GAP and hence a new data set
-
+MAX_TIME_DIFF = 0.5 #Time between data points to be considered a gap
 CPD_THRESHOLD = 3 # 3 times the standard deviation, from paper
         
 class MemoryAnalysis():
