@@ -1,4 +1,8 @@
-# MemoryTools - A low impact memory alert system 
+<h1>  <img src="https://github.com/BenjaminCarpenter480/memorytools/assets/6034496/8f94fa35-8e5a-492a-a61d-5c0a981c6cfc" alt="logo" style="width:4rem; height:auto;" /> MemoryTools - A low impact memory alert system  </h1>
+
+
+
+
 This work presents a novel, low-impact, and language-independent memory alert system designed to detect potential memory leaks in software systems. Using machine learning techniques, the system integrates seamlessly with existing unit testing and continuous integration strategies at the European Southern Observatory (ESO) -notably Pytest- to provide early detection of memory leaks.
 This proactive approach allows developers to address issues promptly and before they become an issue in production, enhancing the reliability and efficiency of their software.
 The system has been tested using a memory leak simulator and real-world data, demonstrating its effectiveness in a practical setting.
