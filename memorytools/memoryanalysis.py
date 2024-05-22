@@ -183,10 +183,15 @@ class MemoryAnalysis():
                         t_crit = (CRITICAL_MEMORY_USAGE - c)/m
 
                     if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
-                        print(r2)
+                        
                         if (DEBUG_PLOTTING):
-                            plt.scatter(input_data.times,input_data.vmss, label="Original")
-                            plt.scatter(list(map(datetime.datetime.fromtimestamp,ts)),ys, label="Resampled")
+                            plt.scatter(input_data.times,input_data.vmss, label="Recorded data", marker="x")
+                            plt.scatter(list(map(datetime.datetime.fromtimestamp,ts)),ys, label="Resampled leaking window",marker="x")
+                            plt.xticks(rotation = 40) 
+                            plt.xlabel("Time stamp")
+                            plt.ylabel("Memory usage (Bytes)")
+                            #Add a label with the gradient and intercept and r2
+                            plt.title(f"{input_data.name}-{pid}:\n $R^2$: {r2:.2f}")
                             plt.legend()
                             plt.show()
                         anomalus_names.add(self.__memory_data[pid].name)
