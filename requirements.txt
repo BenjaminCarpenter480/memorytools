@@ -6,8 +6,3 @@ pytest
 scipy
 ruptures
 typer
-
-#Documentation
-Sphinx
-myst-parser
-sphinx-rtd-theme
