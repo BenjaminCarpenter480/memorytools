@@ -158,9 +158,9 @@ class TestMemoryRecording():
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
             writer.writeheader()
-            writer.writerow({'Process ID': 1001001001, 'Process Name': 'Process 1', 'Time': '2022-01-01 00:00:00.00000', 'Memory Usage': 100})
-            writer.writerow({'Process ID': 2002002002, 'Process Name': 'Process 2', 'Time': '2022-01-01 00:01:00.00000', 'Memory Usage': 200})
-            writer.writerow({'Process ID': 1001001001, 'Process Name': 'Process 1', 'Time': '2022-01-01 00:02:00.00000', 'Memory Usage': 150})
+            writer.writerow({'Process ID': 1001001001, 'Process Name': 'Process 1', 'Time': '2022-01-01 00:00:00.00001', 'Memory Usage': 100})
+            writer.writerow({'Process ID': 2002002002, 'Process Name': 'Process 2', 'Time': '2022-01-01 00:01:00.00001', 'Memory Usage': 200})
+            writer.writerow({'Process ID': 1001001001, 'Process Name': 'Process 1', 'Time': '2022-01-01 00:02:00.00001', 'Memory Usage': 150})
 
         # Import the data from the CSV file
         mem_snap.import_from_csv(filename)
