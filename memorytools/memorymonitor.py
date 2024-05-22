@@ -162,8 +162,8 @@ class MemorySnapper:
         self.totals[current_time]=total_mem
 
     def detect_leaks(self,algo="LBR")->Tuple[List[str],List[int]]:
-        """ Detect memory leaks using a given algorithm
-
+        """Detect memory leaks using a given algorithm
+        
         Args:
             algo: Algorithm to use to detect memory leaks
 
@@ -267,18 +267,18 @@ class MemorySnapper:
                 self.__data[proc_id][time] = memory
 
 class MemoryMonitor(MemorySnapper):
-    """
-        Class for continuous monitoring of processes memory usage
-        Args:
-            data_file: Path to the data file for persistence across instances
-            time_interval: Time interval between snapshots monitoring in seconds
-        
+    """Class for continuous monitoring of processes memory usage
+    
+    Args:
+        data_file: Path to the data file for persistence across instances
+        time_interval: Time interval between snapshots monitoring in seconds
+    
 
-        Example usage::
-            >>> mem_monitor = MemoryMonitor() #Create a memory monitor object
-            >>> mem_monitor.start_monitoring() #Start monitoring memory usage
-            >>> <Do some stuff while monitoring memory usage>
-            >>> mem_monitor.stop_monitoring() #Stop monitoring memory usage
+    Example usage::
+        >>> mem_monitor = MemoryMonitor() #Create a memory monitor object
+        >>> mem_monitor.start_monitoring() #Start monitoring memory usage
+        >>> <Do some stuff while monitoring memory usage>
+        >>> mem_monitor.stop_monitoring() #Stop monitoring memory usage
     """
     def __init__(self, data_file=None, time_interval:float=1):
         super().__init__(existing_data_file=data_file)
