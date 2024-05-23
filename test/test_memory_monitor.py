@@ -158,9 +158,9 @@ class TestMemoryRecording():
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
             writer.writeheader()
-            writer.writerow({'Process ID': 1001001001, 'Process Name': 'Process 1', 'Time': '2022-01-01 00:00:00.00001', 'Memory Usage': 100})
-            writer.writerow({'Process ID': 2002002002, 'Process Name': 'Process 2', 'Time': '2022-01-01 00:01:00.00001', 'Memory Usage': 200})
-            writer.writerow({'Process ID': 1001001001, 'Process Name': 'Process 1', 'Time': '2022-01-01 00:02:00.00001', 'Memory Usage': 150})
+            writer.writerow({'Process ID': 1001001001, 'Process Name': 'Process 1', 'Time': datetime.datetime(2022, 1, 1, 0, 0).isoformat() , 'Memory Usage': 100})
+            writer.writerow({'Process ID': 2002002002, 'Process Name': 'Process 2', 'Time': datetime.datetime(2022, 1, 1, 0, 2).isoformat() , 'Memory Usage': 200})
+            writer.writerow({'Process ID': 1001001001, 'Process Name': 'Process 1', 'Time': datetime.datetime(2022, 1, 1, 0, 1).isoformat() , 'Memory Usage': 150})
 
         # Import the data from the CSV file
         mem_snap.import_from_csv(filename)
@@ -170,9 +170,9 @@ class TestMemoryRecording():
         assert "Process 2" in mem_snap.processes
         assert len(mem_snap[1001001001].times) == 2
         assert len(mem_snap[2002002002].times) == 1
-        assert mem_snap[1001001001][datetime.datetime(2022, 1, 1, 0, 0, 0)] == 100
-        assert mem_snap[1001001001][datetime.datetime(2022, 1, 1, 0, 2, 0)] == 150
-        assert mem_snap[2002002002][datetime.datetime(2022, 1, 1, 0, 1, 0)] == 200
+        assert mem_snap[1001001001][datetime.datetime(2022, 1, 1, 0, 0)] == 100
+        assert mem_snap[1001001001][datetime.datetime(2022, 1, 1, 0, 1)] == 150
+        assert mem_snap[2002002002][datetime.datetime(2022, 1, 1, 0, 2)] == 200
 
         
 @pytest.mark.parametrize("leak_detection_algo", 
