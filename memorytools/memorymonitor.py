@@ -148,17 +148,19 @@ class MemorySnapper:
             else:
                 p_name = p.name()
             p_pid = p.pid
-            with p.oneshot():
-                total_mem = total_mem + p.memory_info().vms
             #'New' procs will be missing from stored info
             if p_pid not in self.__data.keys():
                 self.__data[p_pid] = self.ProcMemData(p_pid)
                 self.__proc_names.add(p_name)
-            with p.oneshot():
-            # Update memory usage
-                self[p_pid][current_time] = p.memory_info()
-            # total_mem = total_mem + self[p_pid][current_time]
-        self.logger().info(f"Total memory usage: {total_mem}")
+            try:
+                with p.oneshot():
+                    # Update memory usage
+                    self[p_pid][current_time] = p.memory_info()
+                    total_mem = total_mem + self[p_pid][current_time]
+            except Exception as e:
+                #Do not raise error just skip this loop and report a warning
+                self.logger().warning(f"Error in taking memory snapshot for process {p_pid}: {e}")
+        self.logger().debug(f"Total memory usage: {total_mem}")
         self.totals[current_time]=total_mem
 
     def detect_leaks(self,algo="LBR")->Tuple[List[str],List[int]]:
