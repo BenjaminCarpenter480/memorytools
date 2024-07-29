@@ -116,100 +116,106 @@ class MemoryAnalysis():
         attempts_to_process = 0
 
         for pid in self.__memory_data.pids:
-            self.logger().info(f"Processing {self.__memory_data[pid].name}-{pid}")
-            # DEBUG INFO COUNTERS
-            attempts_to_process = attempts_to_process + 1 
-            attempts_to_resample = 0 # Local number of resamplings we have attempted
-            unable_to_resample = 0 # Local number of resamplings we have been unable to do
-            processed = False #Flag to indicate if we have processed this PID
-            
-            ##PREPROCESSING
+            self.detect_leak_in_process(pid)
 
-            #Storing locally data
-            input_data = self.__memory_data[pid]
-            #Get time as a float, only care about number at this point
-            ts_full = list(map(datetime.datetime.timestamp, input_data.times))
-            vmss_full = input_data.vmss
-            
-            ## GAP ANALYSIS AND FILTERING ##
-            #We need to ensure that we are not creating windows which includes a large gap in input_data.times
-            # data with such gaps is not reliable when resampled and should be considered a separate data set in the below case
-            # We will do this by finding gaps above a threshold in the data and splitting the data into separate data sets on these
-            # gaps
-            ts_diff = np.diff(ts_full)
-            ts_diff = np.insert(ts_diff,0,0) #Insert a 0 at the start to keep the array the same length
-
-            #Find the gaps
-            gaps = np.where(ts_diff>MAX_TIME_DIFF)[0]
-            self.logger().debug(f"{input_data.name}-{pid}: Found {len(gaps)} gaps in data")
-            if len(gaps) != 0:
-                #We have gaps, we need to split the data
-                ts_splits = np.split(ts_full,gaps)
-                vmss_splits = np.split(vmss_full,gaps)
-            else:
-                ts_splits = [ts_full]
-                vmss_splits = [vmss_full]
-
-            ## RESAMPLING ##
-            for i in range(len(ts_splits)):
-                ts = ts_splits[i]
-                ys = vmss_splits[i]
-                
-                #Now we need to resample the data   
-                try:
-                    attempts_to_resample = attempts_to_resample + 1
-                    ts_rsampl, vmss_rsampl = self.resample_data(ts, ys)
-                except ValueError:
-                    unable_to_resample = unable_to_resample + 1
-                    continue
-                processed = True 
-
-                ###LINEAR REGRESSION ###
-                # Now we do the linear regression
-                i = WIN_MIN_NUM_POINTS_DETECT
-                window_max = len(ts_rsampl)
-                n = len(ts_rsampl)
-                while(i<= n and i<=window_max):
-                    self.logger().debug(f"{input_data.name}-{pid}: Processing window {n-i}/{n}")
-                    ts = ts_rsampl[n-i:n]
-                    ys = vmss_rsampl[n-i:n]
-                        
-                    m,c,r_pcc,*_ =scipy.stats.linregress(ts,ys) #Gives us Pearson correlation coeff unlike np.polyfit
-                    #Now we do some more inteligent stuff compared to linefit
-                    r2 = r_pcc**2 #Rsquare is the square of the pearson correlation coefficient
-                    if m == 0:
-                        t_crit = np.Infinity # No memory leak, gradient flat
-                    else:
-                        t_crit = (CRITICAL_MEMORY_USAGE - c)/m
-
-                    if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
-                        
-                        if (DEBUG_PLOTTING):
-                            plt.scatter(input_data.times,input_data.vmss, label="Recorded data", marker="x")
-                            plt.scatter(list(map(datetime.datetime.fromtimestamp,ts)),ys, label="Resampled leaking window",marker="x")
-                            plt.xticks(rotation = 40) 
-                            plt.xlabel("Time stamp")
-                            plt.ylabel("Memory usage (Bytes)")
-                            #Add a label with the gradient and intercept and r2
-                            plt.title(f"{input_data.name}-{pid}:\n $R^2$: {r2:.2f}")
-                            plt.legend()
-                            plt.show()
-                        anomalus_names.add(self.__memory_data[pid].name)
-                        anomalus_pids.add(pid)
-                        break #Proc has issues, escape    
-
-                    i = i+1
-            if (processed  == False):
-                #We were unable to process this PID due to it not being well formed enough, report this
-                unable_to_process = unable_to_process + 1
-                self.logger().warning(f"{input_data.name}-{pid}: Insufficient data for process {input_data.name} with pid {pid}")
-                self.logger().warning(f"{input_data.name}-{pid}: Unable to resample {unable_to_resample}/{attempts_to_resample}")
-            else:
-                self.logger().info(f"{input_data.name}-{pid}: Unable to resample {unable_to_resample}/{attempts_to_resample}")
         if (unable_to_process > 0 and attempts_to_process > 0):
             self.logger().warning("Unable to process %d/%d",unable_to_process, attempts_to_process)
         return (anomalus_names, anomalus_pids)
 
+    def detect_leak_in_process(self, pid):
+        self.logger().info(f"Processing {self.__memory_data[pid].name}-{pid}")
+        # DEBUG INFO COUNTERS
+        attempts_to_process = 0 
+        attempts_to_resample = 0 # Local number of resamplings we have attempted
+        unable_to_resample = 0 # Local number of resamplings we have been unable to do
+        processed = False #Flag to indicate if we have processed this PID
+
+        ##PREPROCESSING
+
+        #Storing locally data
+        input_data = self.__memory_data[pid]
+        #Get time as a float, only care about number at this point
+        ts_full = list(map(datetime.datetime.timestamp, input_data.times))
+        vmss_full = input_data.vmss
+
+        ## GAP ANALYSIS AND FILTERING ##
+        #We need to ensure that we are not creating windows which includes a large gap in input_data.times
+        # data with such gaps is not reliable when resampled and should be considered a separate data set in the below case
+        # We will do this by finding gaps above a threshold in the data and splitting the data into separate data sets on these
+        # gaps
+        ts_diff = np.diff(ts_full)
+        ts_diff = np.insert(ts_diff,0,0) #Insert a 0 at the start to keep the array the same length
+
+        #Find the gaps
+        gaps = np.where(ts_diff>MAX_TIME_DIFF)[0]
+        self.logger().debug(f"{input_data.name}-{pid}: Found {len(gaps)} gaps in data")
+        if len(gaps) != 0:
+            #We have gaps, we need to split the data
+            ts_splits = np.split(ts_full,gaps)
+            vmss_splits = np.split(vmss_full,gaps)
+        else:
+            ts_splits = [ts_full]
+            vmss_splits = [vmss_full]
+
+        ## RESAMPLING ##
+        for i in range(len(ts_splits)):
+            ts = ts_splits[i]
+            ys = vmss_splits[i]
+
+            #Now we need to resample the data   
+            try:
+                attempts_to_resample = attempts_to_resample + 1
+                ts_rsampl, vmss_rsampl = self.resample_data(ts, ys)
+            except ValueError:
+                unable_to_resample = unable_to_resample + 1
+                continue
+            processed = True 
+
+            ###LINEAR REGRESSION ###
+            # Now we do the linear regression
+            i = WIN_MIN_NUM_POINTS_DETECT
+            window_max = len(ts_rsampl)
+            n = len(ts_rsampl)
+            while(i<= n and i<=window_max):
+                self.logger().debug(f"{input_data.name}-{pid}: Processing window {n-i}/{n}")
+                ts = ts_rsampl[n-i:n]
+                ys = vmss_rsampl[n-i:n]
+
+                m,c,r_pcc,*_ =scipy.stats.linregress(ts,ys) #Gives us Pearson correlation coeff unlike np.polyfit
+                #Now we do some more inteligent stuff compared to linefit
+                r2 = r_pcc**2 #Rsquare is the square of the pearson correlation coefficient
+                if m == 0:
+                    t_crit = np.inf # No memory leak, gradient flat
+                else:
+                    t_crit = (CRITICAL_MEMORY_USAGE - c)/m
+
+                if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
+
+                    if (DEBUG_PLOTTING):
+                        plt.scatter(input_data.times,input_data.vmss, label="Recorded data", marker="x")
+                        plt.scatter(list(map(datetime.datetime.fromtimestamp,ts)),ys, label="Resampled leaking window",marker="x")
+                        plt.xticks(rotation = 40) 
+                        plt.xlabel("Time stamp")
+                        plt.ylabel("Memory usage (Bytes)")
+                        #Add a label with the gradient and intercept and r2
+                        plt.title(f"{input_data.name}-{pid}:\n $R^2$: {r2:.2f}")
+                        plt.legend()
+                        plt.show()
+                    anomalus_names.add(self.__memory_data[pid].name)
+                    anomalus_pids.add(pid)
+                    break #Proc has issues, escape    
+
+                i = i+1
+
+        ## POST PROCESSING DEBUG INFO ## 
+        if (processed  == False):
+            #We were unable to process this PID due to it not being well formed enough, report this
+            unable_to_process = unable_to_process + 1
+            self.logger().warning(f"{input_data.name}-{pid}: Insufficient data for process {input_data.name} with pid {pid}")
+            self.logger().warning(f"{input_data.name}-{pid}: Unable to resample {unable_to_resample}/{attempts_to_resample}")
+        else:
+            self.logger().info(f"{input_data.name}-{pid}: Unable to resample {unable_to_resample}/{attempts_to_resample}")
+    
 
     def change_points_detection(self, times, values, model="l2")->List[int]:
         """Calculate change points for the data set provided using the ruptures package
@@ -289,7 +295,7 @@ class MemoryAnalysis():
                 m,c,r_pcc,*_ =scipy.stats.linregress(ts,ys)
                 r2 = r_pcc**2 #Rsquare is the square of the pearson correlation coefficient
                 if m == 0:
-                    t_crit = np.Infinity # No memory leak, gradient flat
+                    t_crit = np.inf # No memory leak, gradient flat
                 else:
                     t_crit = (CRITICAL_MEMORY_USAGE - c)/m
 
