@@ -179,7 +179,7 @@ class MemoryAnalysis():
                     #Now we do some more inteligent stuff compared to linefit
                     r2 = r_pcc**2 #Rsquare is the square of the pearson correlation coefficient
                     if m == 0:
-                        t_crit = np.Infinity # No memory leak, gradient flat
+                        t_crit = np.inf # No memory leak, gradient flat
                     else:
                         t_crit = (CRITICAL_MEMORY_USAGE - c)/m
 
@@ -290,7 +290,7 @@ class MemoryAnalysis():
                 m,c,r_pcc,*_ =scipy.stats.linregress(ts,ys)
                 r2 = r_pcc**2 #Rsquare is the square of the pearson correlation coefficient
                 if m == 0:
-                    t_crit = np.Infinity # No memory leak, gradient flat
+                    t_crit = np.inf # No memory leak, gradient flat
                 else:
                     t_crit = (CRITICAL_MEMORY_USAGE - c)/m
 
