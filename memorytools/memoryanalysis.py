@@ -14,6 +14,7 @@ import ruptures.show
 import scipy.interpolate
 import scipy.stats
 
+from . import memoryconstants as consts
 
 try:
     import ccs
@@ -23,15 +24,6 @@ except ImportError:
 
 
 DEBUG_PLOTTING = False
-WIN_MIN_NUM_POINTS_RESAMPLE = 10 #Number of points in a dataset required to do a resample/any further analysis. Filters out very short running processes
-RESAMPLE_MIN_WIN = timedelta(seconds=0.5).total_seconds() # 5ms as the resampled minimum domain gaps, should be an increase on the recorded delta time
-WIN_MIN_NUM_POINTS_DETECT =  int(20) # points = 10s would be the smallest window size even with 
-R_SQR_MIN = 0.9 #Require an increased confidence from the papers default of 0.8 since we are using a significantly smaller window size
-CRITICAL_TIME_MAX = 60*60*1 # 1 hours
-CRITICAL_MEMORY_USAGE = ps.virtual_memory().total
-MAX_TIME_DIFF = 0.5
-
-CPD_THRESHOLD = 3 # 3 times the standard deviation, from paper
         
 class MemoryAnalysis():
     """Class to analyse memory data to be used in conjunction with MemorySnapper/MemoryMonitor"""
@@ -42,14 +34,14 @@ class MemoryAnalysis():
     def resample_data(self, times, vmss):
         """Resample the memory data to a fixed time interval"""
 
-        if len(times) <= WIN_MIN_NUM_POINTS_RESAMPLE:
+        if len(times) <= consts.WIN_MIN_NUM_POINTS_RESAMPLE:
             self.logger().info("Not enough data to resample")
             raise ValueError("Not enough data to resample")
 
         times  = np.array(times, dtype=float)
 
         #Do resample
-        ts_new = np.arange(min(times),max(times),RESAMPLE_MIN_WIN)
+        ts_new = np.arange(min(times),max(times),consts.RESAMPLE_MIN_WIN)
         vmss_new = np.interp(ts_new,times,vmss)
 
         return ts_new, vmss_new
@@ -156,7 +148,7 @@ class MemoryAnalysis():
         ts_diff = np.insert(ts_diff,0,0) #Insert a 0 at the start to keep the array the same length
 
         #Find the gaps
-        gaps = np.where(ts_diff>MAX_TIME_DIFF)[0]
+        gaps = np.where(ts_diff>consts.MAX_TIME_DIFF)[0]
         self.logger().debug(f"{input_data.name}-{pid}: Found {len(gaps)} gaps in data")
         if len(gaps) != 0:
             #We have gaps, we need to split the data
@@ -182,7 +174,7 @@ class MemoryAnalysis():
 
             ###LINEAR REGRESSION ###
             # Now we do the linear regression
-            i = WIN_MIN_NUM_POINTS_DETECT
+            i = consts.WIN_MIN_NUM_POINTS_DETECT
             window_max = len(ts_rsampl)
             n = len(ts_rsampl)
             while(i<= n and i<=window_max):
@@ -196,9 +188,9 @@ class MemoryAnalysis():
                 if m == 0:
                     t_crit = np.inf # No memory leak, gradient flat
                 else:
-                    t_crit = (CRITICAL_MEMORY_USAGE - c)/m
+                    t_crit = (consts.CRITICAL_MEMORY_USAGE - c)/m
 
-                if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
+                if (r2>=consts.R_SQR_MIN and t_crit > consts.CRITICAL_TIME_MAX):
 
                     if (DEBUG_PLOTTING):
                         def __plot_leaking_memory_window(input_data, ts, ys):
@@ -251,7 +243,7 @@ class MemoryAnalysis():
             algo = rpt.Pelt(model=model).fit(data)
 
             # Retrieve the change points
-            change_points = algo.predict(pen=CPD_THRESHOLD)
+            change_points = algo.predict(pen=consts.CPD_THRESHOLD)
         except ruptures.exceptions.BadSegmentationParameters:
             return []
 
@@ -312,9 +304,9 @@ class MemoryAnalysis():
                 if m == 0:
                     t_crit = np.inf # No memory leak, gradient flat
                 else:
-                    t_crit = (CRITICAL_MEMORY_USAGE - c)/m
+                    t_crit = (consts.CRITICAL_MEMORY_USAGE - c)/m
 
-                if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
+                if (r2>=consts.R_SQR_MIN and t_crit > consts.CRITICAL_TIME_MAX):
                     anomalus_names.add(self.__memory_data[pid].name)
                     anomalus_pids.add(pid)
                     break #Proc has issues, escape
