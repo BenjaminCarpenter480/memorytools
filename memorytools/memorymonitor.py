@@ -158,8 +158,9 @@ class MemorySnapper:
                     self[p_pid][current_time] = p.memory_info()
                     total_mem = total_mem + self[p_pid][current_time]
             except Exception as e:
-                #Do not raise error just skip this loop and report a warning
-                self.logger().warning(f"Error in taking memory snapshot for process {p_pid}: {e}")
+                # Do not raise error just skip this loop and report a warning
+                self.logger().warning(f"Error taking memory snapshot for process {p_name} with pid \
+                                      {p_pid}: {e}")
         self.logger().debug(f"Total memory usage: {total_mem}")
         self.totals[current_time]=total_mem
 
@@ -282,7 +283,7 @@ class MemoryMonitor(MemorySnapper):
         >>> <Do some stuff while monitoring memory usage>
         >>> mem_monitor.stop_monitoring() #Stop monitoring memory usage
     """
-    def __init__(self, data_file=None, time_interval:float=1):
+    def __init__(self, data_file=None, time_interval:float=0.005):
         super().__init__(existing_data_file=data_file)
 
         self.__time_interval = time_interval

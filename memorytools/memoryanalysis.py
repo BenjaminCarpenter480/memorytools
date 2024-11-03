@@ -22,13 +22,14 @@ except ImportError:
 
 
 DEBUG_PLOTTING = False
-WIN_MIN_NUM_POINTS_DETECT =  int(200) # points = 1s
-WIN_MIN_NUM_POINTS_RESAMPLE = 10 #Number of points required to do a resample/any further analysis 
-RESAMPLE_MIN_WIN = timedelta(seconds=0.005).total_seconds() # 5ms
-R_SQR_MIN = 0.9 #From paper
+WIN_MIN_NUM_POINTS_RESAMPLE = 10 #Number of points in a dataset required to do a resample/any further analysis. Filters out very short running processes
+RESAMPLE_MIN_WIN = timedelta(seconds=0.5).total_seconds() # 5ms as the resampled minimum domain gaps, should be an increase on the recorded delta time
+WIN_MIN_NUM_POINTS_DETECT =  int(20) # points = 10s would be the smallest window size even with 
+R_SQR_MIN = 0.9 #Require an increased confidence from the papers default of 0.8 since we are using a significantly smaller window size
 CRITICAL_TIME_MAX = 60*60*1 # 1 hours
 CRITICAL_MEMORY_USAGE = ps.virtual_memory().total
-MAX_TIME_DIFF = 0.5 #Time between data points to be considered a gap
+MAX_TIME_DIFF = 0.5
+
 CPD_THRESHOLD = 3 # 3 times the standard deviation, from paper
         
 class MemoryAnalysis():
