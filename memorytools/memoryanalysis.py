@@ -1,6 +1,7 @@
 from datetime import timedelta
 import datetime
 import logging
+from sqlite3 import DataError
 from typing import List, Tuple
 
 from matplotlib import pyplot as plt
@@ -112,21 +113,28 @@ class MemoryAnalysis():
         """
         anomalus_names = set()
         anomalus_pids = set()
-        #Init counters for how well we have been able to process a dataset
-        unable_to_process = 0
         attempts_to_process = 0
+        unable_to_process = 0
 
         for pid in self.__memory_data.pids:
-            self.detect_leak_in_process(pid)
+            try:
+                attempts_to_process = attempts_to_process + 1
+                if(self.detect_leak_in_process(pid)):
+                    anomalus_names.add(self.__memory_data[pid].name)
+                    anomalus_pids.add(pid)
+            except DataError:
+                unable_to_process = unable_to_process + 1
 
         if (unable_to_process > 0 and attempts_to_process > 0):
             self.logger().warning("Unable to process %d/%d",unable_to_process, attempts_to_process)
         return (anomalus_names, anomalus_pids)
 
     def detect_leak_in_process(self, pid):
+        """
+            LBR for detection of memory leak in a single process
+        """
         self.logger().info(f"Processing {self.__memory_data[pid].name}-{pid}")
         # DEBUG INFO COUNTERS
-        attempts_to_process = 0 
         attempts_to_resample = 0 # Local number of resamplings we have attempted
         unable_to_resample = 0 # Local number of resamplings we have been unable to do
         processed = False #Flag to indicate if we have processed this PID
@@ -193,30 +201,32 @@ class MemoryAnalysis():
                 if (r2>=R_SQR_MIN and t_crit > CRITICAL_TIME_MAX):
 
                     if (DEBUG_PLOTTING):
-                        plt.scatter(input_data.times,input_data.vmss, label="Recorded data", marker="x")
-                        plt.scatter(list(map(datetime.datetime.fromtimestamp,ts)),ys, label="Resampled leaking window",marker="x")
-                        plt.xticks(rotation = 40) 
-                        plt.xlabel("Time stamp")
-                        plt.ylabel("Memory usage (Bytes)")
-                        #Add a label with the gradient and intercept and r2
-                        plt.title(f"{input_data.name}-{pid}:\n $R^2$: {r2:.2f}")
-                        plt.legend()
-                        plt.show()
-                    anomalus_names.add(self.__memory_data[pid].name)
-                    anomalus_pids.add(pid)
-                    break #Proc has issues, escape    
+                        def __plot_leaking_memory_window(input_data, ts, ys):
+                            plt.scatter(input_data.times,input_data.vmss, label="Recorded data", marker="x")
+                            plt.scatter(list(map(datetime.datetime.fromtimestamp,ts)),ys, label="Resampled leaking window",marker="x")
+                            plt.xticks(rotation = 40) 
+                            plt.xlabel("Time stamp")
+                            plt.ylabel("Memory usage (Bytes)")
+                            #Add a label with the gradient and intercept and r2
+                            plt.title(f"{input_data.name}-{pid}:\n $R^2$: {r2:.2f}")
+                            plt.legend()
+                            plt.show()
+                        __plot_leaking_memory_window()
+                    return True #Proc has issues, escape
 
                 i = i+1
 
         ## POST PROCESSING DEBUG INFO ## 
-        if (processed  == False):
+        if (not processed):
             #We were unable to process this PID due to it not being well formed enough, report this
-            unable_to_process = unable_to_process + 1
-            self.logger().warning(f"{input_data.name}-{pid}: Insufficient data for process {input_data.name} with pid {pid}")
-            self.logger().warning(f"{input_data.name}-{pid}: Unable to resample {unable_to_resample}/{attempts_to_resample}")
-        else:
+            err_msg = (f"{input_data.name}-{pid}: Insufficient data, unable to resample "
+                       f"failed attempts: {unable_to_resample}/{attempts_to_resample}")
+            self.logger().error(err_msg)
+            raise DataError(err_msg)
+        else: 
+            # Just report the number of failed resamples in the set
             self.logger().info(f"{input_data.name}-{pid}: Unable to resample {unable_to_resample}/{attempts_to_resample}")
-    
+        return False    
 
     def change_points_detection(self, times, values, model="l2")->List[int]:
         """Calculate change points for the data set provided using the ruptures package
@@ -267,11 +277,15 @@ class MemoryAnalysis():
             input_data = self.__memory_data[pid]
             try:
                 ts_f, ys_f = self.resample_data(input_data.times, input_data.vmss)
-                # if (self.__memory_data[pid].name == "python3"):
-                #     # plt.scatter(input_data.times,input_data.vmss, label="Original")
-                #     # plt.scatter(list(map(datetime.datetime.fromtimestamp,ts_full)),vmss_full, label="Resampled")
-                #     # plt.legend()
-                #     # plt.show()
+                if DEBUG_PLOTTING:
+                    def resample_debug_plot():
+                        if (self.__memory_data[pid].name == "python3"):
+                            plt.scatter(input_data.times,input_data.vmss, label="Original")
+                            plt.scatter(list(map(datetime.datetime.fromtimestamp,ts_full)),vmss_full, label="Resampled")
+                            plt.legend()
+                            plt.show()
+
+                    resample_debug_plot()
             except ValueError:
                 self.logger().warning(f"Insufficient data to resample for process {input_data.name} with pid {pid}")
                 unable_to_process = unable_to_process + 1
