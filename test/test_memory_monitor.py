@@ -27,7 +27,7 @@ def start_server(request: type[pytest.FixtureRequest]): #Do not change api
     """
     
     global PORT
-    PORT = 8130
+    PORT = 8128
 
     #Spawn a test_server.py with Popen, yield and then kill it
     proc = subprocess.Popen(["python3", "test/test_server.py"])
@@ -35,11 +35,14 @@ def start_server(request: type[pytest.FixtureRequest]): #Do not change api
     if(proc.poll() is not None):
         proc.kill()
         raise Exception("Test server failed to start")
-    yield proc.pid,None #Proc name in second pos
+    yield proc.pid, None #Proc name in second pos
     requests.get(f"http://127.0.0.1:{PORT}/exit")
     time.sleep(2)
     proc.kill()
     time.sleep(2)
+    if proc.poll() is None:
+        proc.terminate()
+        proc.wait()
 
 @pytest.fixture(scope="function")
 def reset_server():
