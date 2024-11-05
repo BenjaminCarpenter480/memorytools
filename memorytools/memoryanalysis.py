@@ -1,7 +1,6 @@
 from datetime import timedelta
 import datetime
 import logging
-from sqlite3 import DataError
 from typing import List, Tuple
 
 from matplotlib import pyplot as plt
@@ -60,7 +59,8 @@ class MemoryAnalysis():
         elif algo=="LBR":
             __algo = self.detect_leaks_linear_backward_regression
         elif algo=="LBRCPD":
-            __algo = self.linear_backward_regression_with_change_points    
+            return NotImplementedError()
+            # __algo = self.linear_backward_regression_with_change_points    
         else:
             raise NotImplementedError()
 
@@ -114,7 +114,7 @@ class MemoryAnalysis():
                 if(self.detect_leak_in_process(pid)):
                     anomalus_names.add(self.__memory_data[pid].name)
                     anomalus_pids.add(pid)
-            except DataError:
+            except ValueError:
                 unable_to_process = unable_to_process + 1
 
         if (unable_to_process > 0 and attempts_to_process > 0):
@@ -214,7 +214,7 @@ class MemoryAnalysis():
             err_msg = (f"{input_data.name}-{pid}: Insufficient data, unable to resample "
                        f"failed attempts: {unable_to_resample}/{attempts_to_resample}")
             self.logger().error(err_msg)
-            raise DataError(err_msg)
+            raise ValueError(err_msg)
         else: 
             # Just report the number of failed resamples in the set
             self.logger().info(f"{input_data.name}-{pid}: Unable to resample {unable_to_resample}/{attempts_to_resample}")

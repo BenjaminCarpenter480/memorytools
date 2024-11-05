@@ -139,29 +139,27 @@ class MemorySnapper:
         current_time = datetime.datetime.now()
         total_mem = 0 # Total memory usage for all processes
         for p in ps.process_iter():
-            if CCSENV:
-                #CCS Make CCS related changes
-                #Only interested in the current environment
-                if p.pid not in env_pids:
-                    continue
-                p_name = env_pids[p.pid]  # Make use of ccs names
-            else:
-                p_name = p.name()
-            p_pid = p.pid
-            #'New' procs will be missing from stored info
-            if p_pid not in self.__data.keys():
-                self.__data[p_pid] = self.ProcMemData(p_pid)
-                self.__proc_names.add(p_name)
+            #Require a try except around this code due to possibility of a process disappearing whilst we interrogate it
             try:
+                if CCSENV:
+                    #CCS Make CCS related changes
+                    #Only interested in the current environment
+                    if p.pid not in env_pids:
+                        continue
+                    p_name = env_pids[p.pid]  # Make use of ccs names
+                else:
+                    p_name = p.name()
+                #'New' procs will be missing from stored info
+                if p.pid not in self.__data.keys():
+                    self.__data[p.pid] = self.ProcMemData(p.pid)
+                    self.__proc_names.add(p_name)
                 with p.oneshot():
                     # Update memory usage
-                    self[p_pid][current_time] = p.memory_info()
-                    total_mem = total_mem + self[p_pid][current_time]
-            except Exception as e:
-                # Do not raise error just skip this loop and report a warning
-                self.logger().warning(f"Error taking memory snapshot for process {p_name} with pid \
-                                      {p_pid}: {e}")
-        self.logger().debug(f"Total memory usage: {total_mem}")
+                    self[p.pid][current_time] = p.memory_info()
+                    total_mem = total_mem + self[p.pid][current_time]
+            except ps.Error as e:
+                    #Do not raise error just skip and log as a warning
+                    self.logger().warning("Skipping a process, got error %s", str(e))
         self.totals[current_time]=total_mem
 
     def detect_leaks(self,algo="LBR")->Tuple[List[str],List[int]]:
@@ -192,7 +190,7 @@ class MemorySnapper:
         plt.tight_layout()
         plt.xticks(rotation=45)
 
-    def plot_data_to_file(self, proc_pads=None, names=None, filename=None):
+    def plot_data_to_file(self, proc_pids=None, names=None, filename=None):
         """
         Plot the memory usage of a process over time or all processes if proc_pid is None and save to a file
         
@@ -201,11 +199,11 @@ class MemorySnapper:
             filename: If provided, the plot will be saved to this file
         """
         if names:
-            proc_pads = []
+            proc_pids = []
             for name in names:
                 for proc in self.procs_by_name(name):
-                    proc_pads.append(proc.pid)
-        self._plot_data(proc_pads)
+                    proc_pids.append(proc.pid)
+        self._plot_data(proc_pids)
         
         if filename:
             plt.savefig(filename)
@@ -310,8 +308,11 @@ class MemoryMonitor(MemorySnapper):
 
     def __monitor_loop(self):
         while self.__monitoring:
-            self.take_memory_snapshot()
-            time.sleep(self.__time_interval)
+            try:
+                self.take_memory_snapshot()
+                time.sleep(self.__time_interval)
+            except Exception as e:
+                self.logger.error("Monitoring loop got error: %s", e)
 
     def stop_monitoring(self):
             """
