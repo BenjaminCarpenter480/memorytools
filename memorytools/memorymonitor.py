@@ -120,14 +120,9 @@ class MemorySnapper:
         with open(self.__data_file, "wb") as fp:
             pickle.dump(self.__dict__, fp)
 
-    def take_memory_snapshot(self):
-        """Create an entry in the data structure for memory processes in the environment at the
-        current time.
-        """
-
-        # SETUP TIME
+    def get_proc_name(self, process: ps.Process) -> str:
+                # SETUP TIME
         if CCSENV:
-            total = 0
             env_procs = ccs.GetEnvProcs(
                 full_report=True
             )  # Whilst process_iter might thread safe this ccs.GetEnvProcs is not
@@ -135,32 +130,50 @@ class MemorySnapper:
                 del env_procs[ccs.procName]
             env_pids = {v["pid"]: k for k, v in env_procs.items()}
 
+            #CCS Make CCS related changes
+            #Only interested in the current environment
+            if process.pid not in env_pids:
+                p_name = ""
+            else:
+                p_name = env_pids[process.pid]  # Make use of ccs names
+        else:
+            p_name =  process.name()
+
+        return p_name
+    def take_memory_snapshot(self):
+        """Create an entry in the data structure for memory processes in the environment at the
+        current time.
+        """
         # MEASURE TIME
         current_time = datetime.datetime.now()
         total_mem = 0 # Total memory usage for all processes
         for p in ps.process_iter():
-            if CCSENV:
-                #CCS Make CCS related changes
-                #Only interested in the current environment
-                if p.pid not in env_pids:
-                    continue
-                p_name = env_pids[p.pid]  # Make use of ccs names
-            else:
-                p_name = p.name()
-            p_pid = p.pid
-            #'New' procs will be missing from stored info
-            if p_pid not in self.__data.keys():
-                self.__data[p_pid] = self.ProcMemData(p_pid)
-                self.__proc_names.add(p_name)
             try:
-                with p.oneshot():
-                    # Update memory usage
-                    self[p_pid][current_time] = p.memory_info()
-                    total_mem = total_mem + self[p_pid][current_time]
-            except Exception as e:
-                # Do not raise error just skip this loop and report a warning
-                self.logger().warning(f"Error taking memory snapshot for process {p_name} with pid \
-                                      {p_pid}: {e}")
+                if p_name := self.get_proc_name(p) == "":
+                    # Process is not identifiable or not part of the current environment, skip it
+                    continue
+
+                p_pid = p.pid
+                #'New' procs will be missing from stored info
+                if p_pid not in self.__data.keys():
+                    self.__data[p_pid] = self.ProcMemData(p_pid)
+                    self.__proc_names.add(p_name)
+                try:
+                    with p.oneshot():
+                        # Update memory usage
+                        self[p_pid][current_time] = p.memory_info()
+                        total_mem = total_mem + self[p_pid][current_time]
+                except Exception as e:
+                    # Do not raise error just skip this loop and report a warning
+                    self.logger().warning(f"Error taking memory snapshot for process {p_name} with \
+                                        pid {p_pid}: {e}")
+            except (ps.NoSuchProcess, ps.AccessDenied, ps.ZombieProcess):
+                # Process has terminated or we don't have permission to access it, skip it
+                if p_name:
+                    self.logger().warning(f"Process {p_name} has terminated or access is denied, skipping.")
+                else:
+                    self.logger().warning(f"Process has terminated or access is denied, skipping.")
+                continue
         self.logger().debug(f"Total memory usage: {total_mem}")
         self.totals[current_time]=total_mem
 
